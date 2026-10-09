@@ -77,8 +77,8 @@ export default function MapView() {
       <div className="rounded-xl border overflow-hidden h-[70vh]">
         <MapContainer center={[41.395, 2.16]} zoom={12} className="h-full w-full" scrollWheelZoom>
           <TileLayer
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            attribution='&copy; OpenStreetMap contributors'
+            url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"
+            attribution='Tiles &copy; Esri'
             maxZoom={19}
           />
           {(!loading && level === "district" && (districts.data || []).map((d) => {
