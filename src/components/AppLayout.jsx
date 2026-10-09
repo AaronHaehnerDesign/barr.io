@@ -1,13 +1,13 @@
 import { Link, NavLink, Outlet } from "react-router-dom";
-import { useProfile } from "@/lib/useProfile";
 import { base44 } from "@/api/base44Client";
-import { Map, ListOrdered, GitCompareArrows, User, Sparkles, LogOut, Home } from "lucide-react";
+import { Map, ListOrdered, GitCompareArrows, User, LogOut, Home, SlidersHorizontal, Bot } from "lucide-react";
 
 const NAV = [
   { to: "/results", label: "Results", icon: ListOrdered },
   { to: "/map", label: "Map", icon: Map },
   { to: "/compare", label: "Compare", icon: GitCompareArrows },
-  { to: "/profile", label: "My Profile", icon: User }
+  { to: "/priorities", label: "Priorities", icon: SlidersHorizontal },
+  { to: "/agent", label: "Agent", icon: Bot }
 ];
 
 const sideLinkClass = ({ isActive }) =>
@@ -16,8 +16,6 @@ const sideLinkClass = ({ isActive }) =>
   }`;
 
 export default function AppLayout() {
-  const { data: profile } = useProfile();
-
   async function logout() {
     await base44.auth.logout();
   }
@@ -45,14 +43,9 @@ export default function AppLayout() {
         </nav>
 
         <div className="border-t p-3 space-y-1">
-          <Link
-            to={profile?.persona ? "/profile" : "/onboarding"}
-            className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ${
-              profile?.persona ? "border text-foreground hover:bg-muted" : "bg-primary text-primary-foreground"
-            }`}
-          >
-            <Sparkles className="h-4 w-4" /> {profile?.persona || "Start onboarding"}
-          </Link>
+          <NavLink to="/profile" className={sideLinkClass}>
+            <User className="h-4 w-4" /> My Profile
+          </NavLink>
           <button
             onClick={logout}
             className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -83,13 +76,13 @@ export default function AppLayout() {
 
       {/* Mobile bottom nav */}
       <nav className="md:hidden sticky bottom-0 z-40 border-t bg-background">
-        <div className="grid grid-cols-4">
-          {NAV.map((n) => (
+        <div className="grid grid-cols-6">
+          {[...NAV, { to: "/profile", label: "Profile", icon: User }].map((n) => (
             <NavLink
               key={n.to}
               to={n.to}
               className={({ isActive }) =>
-                `flex flex-col items-center gap-0.5 py-2 text-[11px] ${isActive ? "text-foreground" : "text-muted-foreground"}`
+                `flex flex-col items-center gap-0.5 py-2 text-[10px] ${isActive ? "text-foreground" : "text-muted-foreground"}`
               }
             >
               <n.icon className="h-5 w-5" /> {n.label}

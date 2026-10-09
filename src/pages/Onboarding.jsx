@@ -61,7 +61,7 @@ export default function Onboarding() {
     <div className="mx-auto max-w-2xl px-4 py-6 h-[calc(100vh-3.5rem)] flex flex-col">
       <div className="flex items-center gap-2 mb-3">
         <Sparkles className="h-5 w-5 text-primary" />
-        <h1 className="text-lg font-semibold">Onboarding chat</h1>
+        <h1 className="text-lg font-semibold">Agent</h1>
         {draft?.persona && <span className="ml-auto rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">{draft.persona}</span>}
       </div>
 

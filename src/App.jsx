@@ -56,6 +56,7 @@ const AuthenticatedApp = () => {
         <Route element={<AppLayout />}>
           <Route path="/results" element={<Results />} />
           <Route path="/onboarding" element={<Onboarding />} />
+          <Route path="/agent" element={<Onboarding />} />
           <Route path="/priorities" element={<PriorityBoard />} />
           <Route path="/map" element={<MapView />} />
           <Route path="/compare" element={<Compare />} />
