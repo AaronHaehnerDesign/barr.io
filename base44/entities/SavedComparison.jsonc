@@ -1,0 +1,25 @@
+{
+  "name": "SavedComparison",
+  "type": "object",
+  "properties": {
+    "area_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "area_type": {
+      "type": "string",
+      "enum": [
+        "district",
+        "barri"
+      ]
+    },
+    "label": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "area_ids"
+  ]
+}

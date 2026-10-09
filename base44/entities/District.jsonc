@@ -1,0 +1,55 @@
+{
+  "name": "District",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "code": {
+      "type": "string",
+      "description": "District number 1-10"
+    },
+    "population": {
+      "type": "number"
+    },
+    "centroid": {
+      "type": "object",
+      "description": "{lon, lat}",
+      "properties": {
+        "lon": {
+          "type": "number"
+        },
+        "lat": {
+          "type": "number"
+        }
+      }
+    },
+    "geometry": {
+      "type": "object",
+      "description": "GeoJSON Polygon (simplified)"
+    },
+    "category_scores": {
+      "type": "object",
+      "description": "category_id -> 1-10 score"
+    },
+    "match_score": {
+      "type": "number",
+      "description": "cached personal match score 0-100 (nullable)"
+    },
+    "indicators": {
+      "type": "array",
+      "description": "indicator values for this area",
+      "items": {
+        "type": "object"
+      }
+    },
+    "is_sample": {
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "required": [
+    "name",
+    "code"
+  ]
+}

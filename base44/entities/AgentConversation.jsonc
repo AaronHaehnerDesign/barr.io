@@ -1,0 +1,27 @@
+{
+  "name": "AgentConversation",
+  "type": "object",
+  "properties": {
+    "messages": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "ongoing",
+        "profile_ready",
+        "completed"
+      ],
+      "default": "ongoing"
+    },
+    "draft_profile": {
+      "type": "object"
+    }
+  },
+  "required": [
+    "messages"
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "name": "IndicatorValue",
+  "type": "object",
+  "properties": {
+    "indicator_name": {
+      "type": "string"
+    },
+    "category_key": {
+      "type": "string"
+    },
+    "area_type": {
+      "type": "string",
+      "enum": [
+        "district",
+        "barri"
+      ]
+    },
+    "area_id": {
+      "type": "string"
+    },
+    "area_code": {
+      "type": "string"
+    },
+    "raw_value": {
+      "type": "number"
+    },
+    "normalized_score": {
+      "type": "number",
+      "minimum": 1,
+      "maximum": 10
+    },
+    "year": {
+      "type": "number"
+    },
+    "external": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": [
+    "indicator_name",
+    "category_key",
+    "area_type",
+    "area_id"
+  ]
+}

@@ -1,0 +1,53 @@
+{
+  "name": "Barri",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "code": {
+      "type": "string"
+    },
+    "district_code": {
+      "type": "string"
+    },
+    "district_name": {
+      "type": "string"
+    },
+    "population": {
+      "type": "number"
+    },
+    "centroid": {
+      "type": "object",
+      "properties": {
+        "lon": {
+          "type": "number"
+        },
+        "lat": {
+          "type": "number"
+        }
+      }
+    },
+    "category_scores": {
+      "type": "object"
+    },
+    "match_score": {
+      "type": "number"
+    },
+    "indicators": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "is_sample": {
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "required": [
+    "name",
+    "code",
+    "district_code"
+  ]
+}

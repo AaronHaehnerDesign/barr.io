@@ -1,0 +1,33 @@
+{
+  "name": "CategoryScore",
+  "type": "object",
+  "properties": {
+    "category_key": {
+      "type": "string"
+    },
+    "area_type": {
+      "type": "string",
+      "enum": [
+        "district",
+        "barri"
+      ]
+    },
+    "area_id": {
+      "type": "string"
+    },
+    "area_code": {
+      "type": "string"
+    },
+    "score": {
+      "type": "number",
+      "minimum": 1,
+      "maximum": 10
+    }
+  },
+  "required": [
+    "category_key",
+    "area_type",
+    "area_id",
+    "score"
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "name": "UserProfile",
+  "type": "object",
+  "properties": {
+    "persona": {
+      "type": "string",
+      "enum": [
+        "Remote worker",
+        "Family",
+        "Retiree",
+        "Investor",
+        "Business founder",
+        "Relocating professional"
+      ]
+    },
+    "priorities": {
+      "type": "array",
+      "description": "ranked list {category_key, rank, weight 0-100}",
+      "items": {
+        "type": "object"
+      }
+    },
+    "hard_filters": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "raw_input_text": {
+      "type": "string"
+    },
+    "confirmed": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": [
+    "persona"
+  ]
+}

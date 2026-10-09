@@ -1,0 +1,43 @@
+{
+  "name": "Indicator",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "category_key": {
+      "type": "string"
+    },
+    "source_dataset": {
+      "type": "string",
+      "description": "Open Data BCN dataset code"
+    },
+    "unit": {
+      "type": "string"
+    },
+    "direction": {
+      "type": "string",
+      "enum": [
+        "positive",
+        "negative"
+      ]
+    },
+    "last_updated": {
+      "type": "string",
+      "format": "date"
+    },
+    "year": {
+      "type": "number"
+    },
+    "external": {
+      "type": "boolean",
+      "default": false,
+      "description": "coming soon / not in Open Data BCN"
+    }
+  },
+  "required": [
+    "name",
+    "category_key",
+    "source_dataset"
+  ]
+}
