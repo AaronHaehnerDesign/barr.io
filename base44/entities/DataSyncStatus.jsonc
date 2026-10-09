@@ -1,0 +1,48 @@
+{
+  "name": "DataSyncStatus",
+  "type": "object",
+  "properties": {
+    "dataset_code": {
+      "type": "string",
+      "description": "Open Data BCN dataset code"
+    },
+    "indicator_name": {
+      "type": "string"
+    },
+    "category_key": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "running",
+        "success",
+        "error"
+      ],
+      "default": "running"
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "finished_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "resource_last_modified": {
+      "type": "string",
+      "description": "Last-modified timestamp of the CKAN resource fetched"
+    },
+    "records_written": {
+      "type": "number",
+      "default": 0
+    },
+    "error_message": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "dataset_code",
+    "status"
+  ]
+}
