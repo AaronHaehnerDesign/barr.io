@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from "react";
-import { Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useProfile, useSaveProfile } from "@/lib/useProfile";
 import { useConversation } from "@/lib/useConversation";
@@ -7,7 +6,7 @@ import VoiceRecorder from "@/components/VoiceRecorder";
 import { CATEGORIES } from "@/lib/categories";
 import CategoryIcon from "@/components/CategoryIcon";
 import { Button } from "@/components/ui/button";
-import { Send, Sparkles, Loader2, ArrowRight } from "lucide-react";
+import { Send, Sparkles, Loader2 } from "lucide-react";
 
 const WELCOME = { role: "assistant", content: "Hi! I'm your BarrioMatch agent. Tell me what you're looking for — a home for you and your household, or a location for your business. Describe your situation, budget, and what matters to you, and I'll guide you from there. You can type or tap the mic to speak." };
 
@@ -117,13 +116,6 @@ export default function AgentSidebar({ className = "" }) {
         </Button>
       </form>
 
-      {profile?.persona && (
-        <div className="shrink-0 border-t px-3 py-2 text-right">
-          <Button asChild variant="ghost" size="sm" className="text-xs">
-            <Link to="/priorities">Priority board <ArrowRight className="h-3.5 w-3.5" /></Link>
-          </Button>
-        </div>
-      )}
     </div>
   );
 }

@@ -20,14 +20,17 @@ export default async function (req) {
     const { input } = body;
 
     // --- Load persisted conversation (server is source of truth) ---
-    const convoPage = await base44.asServiceRole.entities.AgentConversation.filter(
-      { created_by_id: user.id }, { limit: 1 }
+    // Plain client (acts as the calling user) so records are user-owned and the
+    // frontend's useConversation reads the same conversation — the agent resumes
+    // the same thread every turn instead of starting fresh.
+    const convoPage = await base44.entities.AgentConversation.filter(
+      {}, { limit: 1, sort: '-created_date' }
     );
     let conversation = (convoPage.items || [])[0] || null;
 
     // --- Load the user's confirmed profile so we can build on it ---
-    const profPage = await base44.asServiceRole.entities.UserProfile.filter(
-      { created_by_id: user.id }, { limit: 1 }
+    const profPage = await base44.entities.UserProfile.filter(
+      {}, { limit: 1, sort: '-created_date' }
     );
     const existingProfile = (profPage.items || [])[0] || null;
 
@@ -124,13 +127,13 @@ Rules:
     ];
 
     if (conversation) {
-      conversation = await base44.asServiceRole.entities.AgentConversation.update(conversation.id, {
+      conversation = await base44.entities.AgentConversation.update(conversation.id, {
         messages: newMessages,
         status: result?.ready ? "profile_ready" : (conversation.status || "ongoing"),
         draft_profile: result?.ready && result?.profile ? result.profile : (conversation.draft_profile || null),
       });
     } else {
-      conversation = await base44.asServiceRole.entities.AgentConversation.create({
+      conversation = await base44.entities.AgentConversation.create({
         messages: newMessages,
         status: result?.ready ? "profile_ready" : "ongoing",
         draft_profile: result?.ready && result?.profile ? result.profile : null,
