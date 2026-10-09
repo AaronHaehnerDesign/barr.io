@@ -12,6 +12,15 @@ import CategoryIcon from "@/components/CategoryIcon";
 import { Plus, X, Save, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+function readingFor(score) {
+  if (score == null) return "—";
+  if (score >= 8) return "High";
+  if (score >= 6) return "Good";
+  if (score >= 4.5) return "Average";
+  if (score >= 2.5) return "Low";
+  return "Very low";
+}
+
 export default function Compare() {
   const districts = useDistricts();
   const barris = useBarris();
@@ -227,7 +236,7 @@ export default function Compare() {
                         <CategoryIcon categoryKey={ind.category_key} className="h-3.5 w-3.5 text-muted-foreground" />
                         <span>{ind.name}</span>
                       </div>
-                      <span className="ml-5.5 text-[11px] text-muted-foreground">{ind.unit}{ind.external ? " · external" : ""}</span>
+                      <span className="ml-5.5 text-[11px] leading-snug text-muted-foreground">{ind.description}{ind.external ? "" : ""}</span>
                     </td>
                     {chosen.map(a => {
                       const iv = (a.indicators || []).find(x => x.indicator_name === ind.name);
@@ -236,7 +245,7 @@ export default function Compare() {
                           {iv ? (
                             <div className="flex flex-col items-center gap-1">
                               <ScoreBadge score={iv.external ? null : iv.normalized_score} size="sm" />
-                              <span className="text-[11px] text-muted-foreground">{iv.external ? "coming soon" : iv.raw_value}</span>
+                              <span className="text-[11px] text-muted-foreground">{iv.external ? "coming soon" : readingFor(iv.normalized_score)}</span>
                             </div>
                           ) : <span className="text-xs text-muted-foreground">—</span>}
                         </td>
