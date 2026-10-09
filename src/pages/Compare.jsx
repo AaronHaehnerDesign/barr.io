@@ -21,10 +21,13 @@ export default function Compare() {
   const [selected, setSelected] = useState([]); // ids
   const [picker, setPicker] = useState(false);
   const preselectRef = useRef(null);
+  const manualRef = useRef(false); // true once the user picks areas by hand
 
-  // Preselect the user's top recommended area once per level.
+  // Preselect the user's top recommended area. Re-runs when priorities/profile
+  // change, so the recommendation always reflects the latest preferences —
+  // unless the user has manually chosen areas for the current level.
   useEffect(() => {
-    if (selected.length) return;
+    if (manualRef.current) return;
     if (preselectRef.current === type) return;
     const data = type === "district" ? districts.data : barris.data;
     if (!data || !data.length) return;
@@ -35,9 +38,10 @@ export default function Compare() {
     const flip = (profile?.persona && PERSONA_FLIPS[profile.persona]) || {};
     const scored = data
       .map((a) => {
+        const base = categoryScoresFromArea(a);
         const cs = {};
         CATEGORIES.forEach((c) => {
-          let s = a.category_scores?.[c.key];
+          let s = base[c.key];
           if (s == null) { cs[c.key] = null; return; }
           if (flip[c.key] === "negative") s = 11 - s;
           cs[c.key] = Math.max(1, Math.min(10, Math.round(s * 10) / 10));
@@ -49,7 +53,7 @@ export default function Compare() {
       setSelected([scored[0].id]);
       preselectRef.current = type;
     }
-  }, [type, districts.data, barris.data, profile, selected]);
+  }, [type, districts.data, barris.data, profile]);
 
   const areas = type === "district" ? (districts.data || []).map(a => ({ ...a, _type: "district" })) : (barris.data || []).map(a => ({ ...a, _type: "barri" }));
   const chosen = selected.map(id => areas.find(a => a.id === id)).filter(Boolean);
@@ -63,10 +67,13 @@ export default function Compare() {
   const palette = ["#0ea5e9", "#f59e0b", "#a855f7"];
 
   function toggle(id) {
+    manualRef.current = true;
     setSelected(s => s.includes(id) ? s.filter(x => x !== id) : s.length < 3 ? [...s, id] : s);
   }
 
   function switchType(t) {
+    manualRef.current = false;
+    preselectRef.current = null;
     setType(t);
     setSelected([]);
   }

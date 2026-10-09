@@ -1,44 +1,73 @@
 // BarrioMatch onboarding agent.
-// Detects whether the user is an individual/household (B2C) or a business (B2B),
-// asks audience-appropriate questions, and returns a structured priority profile.
+// Remembers the user's full conversation (persisted in AgentConversation) and
+// their confirmed profile (UserProfile), so every turn builds on everything the
+// user has said before. The proposed priority profile is the accumulation of all
+// stated values, priorities and data points — never a fresh restart.
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
 
-export default async function(req) {
+const WELCOME = {
+  role: "assistant",
+  content: "Hi! I'm your BarrioMatch agent. Tell me what you're looking for — a home for you and your household, or a location for your business. Describe your situation, budget, and what matters to you, and I'll guide you from there. You can type or tap the mic to speak.",
+};
+
+export default async function (req) {
   try {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await req.json().catch(() => ({}));
-    const { input, history = [] } = body;
+    const { input } = body;
+
+    // --- Load persisted conversation (server is source of truth) ---
+    const convoPage = await base44.asServiceRole.entities.AgentConversation.filter(
+      { created_by_id: user.id }, { limit: 1 }
+    );
+    let conversation = (convoPage.items || [])[0] || null;
+
+    // --- Load the user's confirmed profile so we can build on it ---
+    const profPage = await base44.asServiceRole.entities.UserProfile.filter(
+      { created_by_id: user.id }, { limit: 1 }
+    );
+    const existingProfile = (profPage.items || [])[0] || null;
+
+    const priorMessages = conversation?.messages?.length ? conversation.messages : [WELCOME];
+
+    const accumulated = existingProfile ? {
+      audience: existingProfile.audience,
+      persona: existingProfile.persona,
+      priorities: existingProfile.priorities || [],
+      hard_filters: existingProfile.hard_filters || [],
+      summary: existingProfile.raw_input_text || "",
+    } : null;
 
     const systemPrompt = `You are BarrioMatch, a friendly expert on Barcelona's neighbourhoods (10 districts and 73 barris).
 You help the user build a priority profile so the app can rank areas for them.
 
+ACCUMULATE, DON'T RESTART. The user may already have a profile from a previous conversation. The proposed match must be the accumulation of ALL previously stated values, priorities and data points. Refine and extend what you already know; only discard a previous priority if the user explicitly changes their mind. Never ask again for information the user has already given.
+
+${accumulated ? `CURRENT ACCUMULATED PROFILE (treat as already-collected truth, build on it):
+${JSON.stringify(accumulated)}
+
+When you output a new profile, carry forward every prior priority and hard filter that the user has not contradicted, merge in any new preferences from this turn, and re-rank/re-weight the combined set.` : ``}
+
 STEP 0 — Detect audience:
-From the first message, decide if the user is looking for a place for themselves / their household (B2C, audience "b2c") or for a business / commercial location (B2B, audience "b2b"). If it is genuinely unclear, ask ONE short disambiguating question ("Is this for you personally, or for a business?") before proceeding. Do not ask it if the answer is already obvious from the message.
+From the first message, decide if the user is looking for a place for themselves / their household (B2C, audience "b2c") or for a business / commercial location (B2B, audience "b2b"). If it is genuinely unclear, ask ONE short disambiguating question before proceeding. Do not ask it if the answer is already obvious.
 
 IF B2C (individual / household):
   Ask at most 3 to 5 short follow-up questions across: household composition, budget, car yes/no, work location, lifestyle. Never re-ask what the user already told you.
   Persona options: "Remote worker", "Family", "Retiree", "Relocating professional".
-  Priorities should reflect residential fit.
 
 IF B2B (business):
-  Ask at most 3 to 5 short follow-up questions across: business type / sector, team / employee count, premises type (storefront / office / workshop / logistics), budget for premises, customer accessibility & footfall, staff commute & transport, loading / parking needs. Never re-ask what the user already told you.
+  Ask at most 3 to 5 short follow-up questions across: business type / sector, team size, premises type (storefront / office / workshop / logistics), premises budget, footfall & customer access, staff commute, loading / parking. Never re-ask what the user already told you.
   Persona options: "Business founder", "Investor".
-  Priorities should emphasise commercial fit: give high weight to "dailylife" (commercial density & footfall), "transport" (staff & customer accessibility), "tourism" (customer flow), "prices" (lease cost), "safety", and "development" (emerging / up-and-coming areas).
-
-Process:
-1. Read the user's free description (they may type or send a voice transcript).
-2. Ask the audience-appropriate follow-up questions, at most one or two per turn.
-3. Once you have enough, produce a structured priority profile.
 
 The 13 scoring categories (use these exact keys):
 prices, healthcare, education, transport, car, safety, development, income, dailylife, environment, families, complaints, tourism.
 
-Output STRICT JSON with this shape:
+Output STRICT JSON:
 {
-  "reply": "what you say to the user in this turn (conversational, warm, brief). If you still need info, ask the next 1-2 questions here.",
+  "reply": "what you say this turn (warm, brief, under ~60 words). If you still need info, ask the next 1-2 questions here.",
   "ready": boolean,
   "audience": "b2c" | "b2b",
   "profile": {
@@ -46,21 +75,20 @@ Output STRICT JSON with this shape:
     "persona": "Remote worker | Family | Retiree | Investor | Business founder | Relocating professional",
     "priorities": [ { "category_key": "...", "rank": 1, "weight": 85 } ],
     "hard_filters": [ { "label": "Metro within 500 m", "type": "distance_metro_500", "value": true } ],
-    "summary": "one sentence summary of the user's situation"
+    "summary": "one sentence summary of the user's accumulated situation"
   }
 }
 
 Rules:
 - Always respond in the same language as the user (default English).
-- Keep "reply" under ~60 words. Be warm, not robotic.
 - Only set ready=true once you know the audience, the persona, and at least 5 ranked priorities.
-- Hard filters are optional; only include ones the user explicitly cares about. Use value:false to express "must NOT".
-- Persona flips priorities: Investor weights prices/development/tourism higher (rising value = good); Remote worker weights transport/dailylife high; Retiree weights environment/safety/healthcare high and dailylife low; Family weights education/families/safety high; Business founder weights dailylife/transport/tourism/prices high.`;
+- Hard filters are optional; only include ones the user explicitly cares about. value:false = must NOT.
+- Persona nudges weighting: Investor → prices/development/tourism; Remote worker → transport/dailylife; Retiree → environment/safety/healthcare; Family → education/families/safety; Business founder → dailylife/transport/tourism/prices.`;
 
-    const convo = [...(history || []), { role: "user", content: input || "(no new input - please continue)" }];
+    const convoMessages = [...priorMessages, { role: "user", content: input || "(no new input - please continue)" }];
 
     const result = await base44.asServiceRole.integrations.Core.InvokeLLM({
-      prompt: systemPrompt + "\n\nConversation so far (JSON):\n" + JSON.stringify(convo) +
+      prompt: systemPrompt + "\n\nConversation so far (JSON):\n" + JSON.stringify(convoMessages) +
         "\n\nProduce the JSON response now.",
       model: "automatic",
       response_json_schema: {
@@ -88,8 +116,29 @@ Rules:
       }
     });
 
-    return Response.json(result);
+    const reply = result?.reply || "(no reply)";
+    const newMessages = [
+      ...priorMessages,
+      { role: "user", content: input || "" },
+      { role: "assistant", content: reply },
+    ];
+
+    if (conversation) {
+      conversation = await base44.asServiceRole.entities.AgentConversation.update(conversation.id, {
+        messages: newMessages,
+        status: result?.ready ? "profile_ready" : (conversation.status || "ongoing"),
+        draft_profile: result?.ready && result?.profile ? result.profile : (conversation.draft_profile || null),
+      });
+    } else {
+      conversation = await base44.asServiceRole.entities.AgentConversation.create({
+        messages: newMessages,
+        status: result?.ready ? "profile_ready" : "ongoing",
+        draft_profile: result?.ready && result?.profile ? result.profile : null,
+      });
+    }
+
+    return Response.json({ ...result, conversationId: conversation.id });
   } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    return Response.json({ error: error.message, stack: error.stack }, { status: 500 });
   }
 }

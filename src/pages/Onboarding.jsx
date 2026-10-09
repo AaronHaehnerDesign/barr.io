@@ -2,25 +2,32 @@ import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useProfile, useSaveProfile } from "@/lib/useProfile";
+import { useConversation } from "@/lib/useConversation";
 import VoiceRecorder from "@/components/VoiceRecorder";
 import { CATEGORIES } from "@/lib/categories";
 import CategoryIcon from "@/components/CategoryIcon";
 import { Button } from "@/components/ui/button";
 import { Send, Sparkles, Loader2, ArrowRight } from "lucide-react";
 
+const WELCOME = { role: "assistant", content: "Hi! I'm your BarrioMatch agent. Tell me what you're looking for — a home for you and your household, or a location for your business. Describe your situation, budget, and what matters to you, and I'll guide you from there. You can type or tap the mic to speak." };
+
 export default function Onboarding() {
   const navigate = useNavigate();
-  const { data: profile, refetch } = useProfile();
+  const { data: profile } = useProfile();
+  const { data: convo, refetch: refetchConvo } = useConversation();
   const saveProfile = useSaveProfile();
-  const [messages, setMessages] = useState(() => {
-    const existing = profile?.messages;
-    if (existing?.length) return existing;
-    return [{ role: "assistant", content: "Hi! I'm your BarrioMatch agent. Tell me what you're looking for — a home for you and your household, or a location for your business. Describe your situation, budget, and what matters to you, and I'll guide you from there. You can type or tap the mic to speak." }];
-  });
+  const [pending, setPending] = useState([]); // optimistic messages not yet persisted
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [draft, setDraft] = useState(profile?.draft_profile || null);
+  const [draft, setDraft] = useState(null);
   const scrollRef = useRef(null);
+
+  const serverMessages = convo?.messages?.length ? convo.messages : [WELCOME];
+  const messages = [...serverMessages, ...pending];
+
+  useEffect(() => {
+    if (convo?.draft_profile) setDraft(convo.draft_profile);
+  }, [convo]);
 
   useEffect(() => { scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" }); }, [messages, loading]);
 
@@ -28,17 +35,16 @@ export default function Onboarding() {
     const content = (text ?? input).trim();
     if (!content || loading) return;
     setInput("");
-    const history = messages.map(m => ({ role: m.role, content: m.content }));
-    const userMsg = { role: "user", content };
-    setMessages(m => [...m, userMsg]);
+    setPending((p) => [...p, { role: "user", content }]);
     setLoading(true);
     try {
-      const res = await base44.functions.invoke("agent", { input: content, history });
+      const res = await base44.functions.invoke("agent", { input: content });
       const data = res?.data || {};
-      setMessages(m => [...m, { role: "assistant", content: data.reply || "(no reply)" }]);
+      // the server persisted the user msg + reply; refetch so history is authoritative
+      await refetchConvo();
+      setPending([]);
       if (data.ready && data.profile) {
         setDraft(data.profile);
-        // persist draft as conversation + profile
         await saveProfile.mutateAsync({
           audience: data.profile.audience || data.audience || "b2c",
           persona: data.profile.persona,
@@ -47,11 +53,10 @@ export default function Onboarding() {
           raw_input_text: data.profile.summary || content,
           confirmed: false
         });
-        await refetch();
         setTimeout(() => navigate("/priorities"), 600);
       }
     } catch (e) {
-      setMessages(m => [...m, { role: "assistant", content: "Sorry, I hit a snag. Try sending that again." }]);
+      setPending((p) => [...p, { role: "assistant", content: "Sorry, I hit a snag. Try sending that again." }]);
     } finally {
       setLoading(false);
     }

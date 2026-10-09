@@ -1,5 +1,6 @@
-import { useState, useMemo } from "react";
-import { MapContainer, TileLayer, Polygon, CircleMarker, Tooltip } from "react-leaflet";
+import { useState, useMemo, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { MapContainer, TileLayer, Polygon, CircleMarker, Tooltip, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { useProfile } from "@/lib/useProfile";
 import { useDistricts, useBarris } from "@/lib/useAreas";
@@ -7,12 +8,39 @@ import { matchScore, scoreColor, scoreLabel, categoryScoresFromArea } from "@/li
 import { CATEGORIES, PERSONA_FLIPS } from "@/lib/categories";
 import { audienceConfig } from "@/lib/audience";
 
+// Fit the map tightly to the visible areas so there is no wasted space between
+// districts / barris.
+function FitBounds({ areas }) {
+  const map = useMap();
+  useEffect(() => {
+    const pts = [];
+    areas.forEach((a) => {
+      const ring = a.geometry?.coordinates?.[0];
+      if (ring && ring.length) ring.forEach(([lon, lat]) => pts.push([lat, lon]));
+      else if (a.centroid) pts.push([a.centroid.lat, a.centroid.lon]);
+    });
+    if (pts.length < 2) return;
+    const lats = pts.map((p) => p[0]);
+    const lons = pts.map((p) => p[1]);
+    const pad = 0.012;
+    map.fitBounds(
+      [[Math.min(...lats) - pad, Math.min(...lons) - pad], [Math.max(...lats) + pad, Math.max(...lons) + pad]],
+      { animate: false }
+    );
+  }, [areas, map]);
+  return null;
+}
+
+const WELCOME_HINT = "(start onboarding to see matches)";
+
 export default function MapView() {
+  const navigate = useNavigate();
   const { data: profile } = useProfile();
   const districts = useDistricts();
   const barris = useBarris();
   const [level, setLevel] = useState("district");
   const [metric, setMetric] = useState("match");
+  const [hovered, setHovered] = useState(null);
 
   const ac = audienceConfig(profile);
 
@@ -23,8 +51,6 @@ export default function MapView() {
   }, [profile]);
   const flip = (profile?.persona && PERSONA_FLIPS[profile.persona]) || {};
 
-  // Derive per-category scores from each area's indicators (not the sparse
-  // category_scores field), so every metric is colourable on the heatmap.
   const derived = useMemo(() => {
     const map = new Map();
     const areas = level === "district" ? (districts.data || []) : (barris.data || []);
@@ -44,13 +70,43 @@ export default function MapView() {
     CATEGORIES.forEach((c) => (cs[c.key] = catScore(area, c.key)));
     return matchScore(cs, weights);
   }
-  // a 1-10 value for coloring:
   function value10(area) {
     if (metric === "match") return (matchOf(area) / 10) + 1;
     return catScore(area, metric);
   }
 
   const loading = level === "district" ? districts.isLoading : barris.isLoading;
+  const areas = level === "district" ? (districts.data || []) : (barris.data || []);
+
+  function ringPositions(a) {
+    const ring = a.geometry?.coordinates?.[0];
+    if (!ring || ring.length < 4) return null;
+    return ring.map(([lon, lat]) => [lat, lon]);
+  }
+
+  function polyStyle(a) {
+    const v = value10(a);
+    const isHover = hovered === a.id;
+    return {
+      color: isHover ? "#0f172a" : "#ffffff",
+      weight: isHover ? 2.5 : 0.8,
+      fillColor: v == null ? "#cbd5e1" : scoreColor(v),
+      fillOpacity: isHover ? 0.92 : 0.68,
+    };
+  }
+
+  function hoverLabel(a) {
+    const ms = matchOf(a);
+    const matchLine = profile?.priorities?.length ? ` · ${ms}% match` : ` · ${WELCOME_HINT}`;
+    if (metric === "match" || !catScore(a, metric)) {
+      return `${a.name}${matchLine}`;
+    }
+    return `${a.name} · ${ms}% match · ${metricLabel(metric)}: ${catScore(a, metric).toFixed(1)}/10`;
+  }
+  function metricLabel(key) {
+    const c = CATEGORIES.find((x) => x.key === key);
+    return c ? c.name : key;
+  }
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-4">
@@ -72,6 +128,7 @@ export default function MapView() {
         <span>Low</span>
         <div className="h-2 flex-1 rounded-full" style={{ background: "linear-gradient(to right,#dc463c,#f5d23c,#28aa50)" }} />
         <span>High</span>
+        <span className="ml-2 hidden sm:inline">Hover an area for your match %</span>
       </div>
 
       <div className="rounded-xl border overflow-hidden h-[70vh]">
@@ -81,30 +138,42 @@ export default function MapView() {
             attribution='Tiles &copy; Esri'
             maxZoom={19}
           />
-          {(!loading && level === "district" && (districts.data || []).map((d) => {
-            const v = value10(d);
-            const ms = matchOf(d);
-            const pos = d.geometry?.coordinates?.[0]?.map(([lon, lat]) => [lat, lon]) || [];
-            const c = v == null ? "#ccc" : scoreColor(v);
+          <FitBounds areas={areas} />
+          {!loading && areas.map((a) => {
+            const pos = ringPositions(a);
+            const style = polyStyle(a);
+            const label = hoverLabel(a);
+            const handlers = {
+              mouseover: () => setHovered(a.id),
+              mouseout: () => setHovered(null),
+              click: () => navigate(`/area/${level}/${a.id}`),
+            };
+            if (pos) {
+              return (
+                <Polygon key={a.id} positions={pos} pathOptions={style} eventHandlers={handlers}>
+                  <Tooltip sticky>{label}</Tooltip>
+                </Polygon>
+              );
+            }
+            // fallback for any area without a boundary yet
             return (
-              <Polygon key={d.id} positions={pos} pathOptions={{ color: "#1f2937", weight: 1, fillColor: c, fillOpacity: 0.75 }}>
-                <Tooltip sticky>{d.name}{metric === "match" ? ` — ${ms}% match` : v != null ? ` — ${v.toFixed(1)}/10 (${scoreLabel(v)})` : " — n/a"}</Tooltip>
-              </Polygon>
-            );
-          }))}
-          {(!loading && level === "barri" && (barris.data || []).map((b) => {
-            const v = value10(b);
-            const ms = matchOf(b);
-            const c = v == null ? "#ccc" : scoreColor(v);
-            return (
-              <CircleMarker key={b.id} center={[b.centroid.lat, b.centroid.lon]} radius={9} pathOptions={{ color: "#1f2937", weight: 0.5, fillColor: c, fillOpacity: 0.85 }}>
-                <Tooltip>{b.name} ({b.district_name}){metric === "match" ? ` — ${ms}%` : v != null ? ` — ${v.toFixed(1)}/10` : " — n/a"}</Tooltip>
+              <CircleMarker
+                key={a.id}
+                center={[a.centroid?.lat || 41.395, a.centroid?.lon || 2.16]}
+                radius={7}
+                pathOptions={{ ...style, weight: 0.5 }}
+                eventHandlers={handlers}
+              >
+                <Tooltip>{label}</Tooltip>
               </CircleMarker>
             );
-          }))}
+          })}
         </MapContainer>
       </div>
       {loading && <p className="text-center text-sm text-muted-foreground mt-3">Loading map data…</p>}
+      {!profile?.priorities?.length && !loading && (
+        <p className="text-center text-xs text-muted-foreground mt-2">Complete the onboarding chat to see personalised match percentages.</p>
+      )}
     </div>
   );
 }

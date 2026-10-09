@@ -28,6 +28,10 @@
         }
       }
     },
+    "geometry": {
+      "type": "object",
+      "description": "GeoJSON Polygon (simplified boundary)"
+    },
     "category_scores": {
       "type": "object"
     },

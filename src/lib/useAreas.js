@@ -18,7 +18,7 @@ export function useBarris() {
       const items = [];
       let cursor = undefined;
       do {
-        const page = await base44.entities.Barri.filter({}, { sort: "code", limit: 200, cursor, fields: ["name","code","district_code","district_name","population","centroid","category_scores","indicators","is_sample"] });
+        const page = await base44.entities.Barri.filter({}, { sort: "code", limit: 200, cursor, fields: ["name","code","district_code","district_name","population","centroid","category_scores","indicators","is_sample","geometry"] });
         items.push(...page.items);
         cursor = page.has_more ? page.next_cursor : undefined;
       } while (cursor);

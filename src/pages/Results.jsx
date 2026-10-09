@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useProfile } from "@/lib/useProfile";
 import { useDistricts, useBarris } from "@/lib/useAreas";
-import { matchScore, topReasons, scoreColor } from "@/lib/scoring";
+import { matchScore, topReasons, scoreColor, categoryScoresFromArea } from "@/lib/scoring";
 import { CATEGORIES, CATEGORY_MAP, PERSONA_FLIPS } from "@/lib/categories";
 import { audienceConfig } from "@/lib/audience";
 import ScoreBadge from "@/components/ScoreBadge";
@@ -26,20 +26,17 @@ export default function Results() {
   const flip = (profile?.persona && PERSONA_FLIPS[profile.persona]) || {};
   const ac = audienceConfig(profile);
 
-  function score(area, key) {
-    let s = area.category_scores?.[key];
-    if (s == null) return null;
-    const dir = flip[key];
-    if (dir === "positive") { /* keep: higher already better */ }
-    if (dir === "negative") { s = 11 - s; } // flip loden category polarity for this persona
-    return Math.max(1, Math.min(10, Math.round(s * 10) / 10));
-  }
-
   function rank(areas, type) {
     return areas
       .map((a) => {
+        const base = categoryScoresFromArea(a);
         const cs = {};
-        CATEGORIES.forEach((c) => (cs[c.key] = score(a, c.key)));
+        CATEGORIES.forEach((c) => {
+          let s = base[c.key];
+          if (s == null) { cs[c.key] = null; return; }
+          if (flip[c.key] === "negative") s = 11 - s;
+          cs[c.key] = Math.max(1, Math.min(10, Math.round(s * 10) / 10));
+        });
         const ms = matchScore(cs, weights);
         return { ...a, _type: type, _computedScores: cs, match_score: ms };
       })
