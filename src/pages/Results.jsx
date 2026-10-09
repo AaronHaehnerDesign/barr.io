@@ -22,7 +22,7 @@ export default function Results() {
     return obj;
   }, [profile]);
 
-  const flip = profile?.persona ? PERSONA_FLIPS[profile.persona] : {};
+  const flip = (profile?.persona && PERSONA_FLIPS[profile.persona]) || {};
 
   function score(area, key) {
     let s = area.category_scores?.[key];
