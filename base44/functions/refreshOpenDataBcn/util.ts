@@ -227,7 +227,8 @@ export async function loadBoundaries(): Promise<{
   const [distRows, barrRows] = await Promise.all([fetchRows(distRes, 1000), fetchRows(barrRes, 1000)]);
 
   const districts = distRows.map((d) => {
-    const polys = parseWktPolygons(d.geometria_wgs84 || d.geometria_etrs89 || "");
+    const gKey = geomField(d);
+    const polys = parseWktPolygons(gKey ? d[gKey] : "");
     const ring = polys[0] || [];
     return {
       code: String(d.codi_districte || d.Codi_districte || d["Codi districte"] || "").trim(),
@@ -238,7 +239,8 @@ export async function loadBoundaries(): Promise<{
   }).filter((d) => d.code && d.polys.length);
 
   const barris = barrRows.map((b) => {
-    const polys = parseWktPolygons(b.geometria_wgs84 || b.geometria_etrs89 || "");
+    const gKey = geomField(b);
+    const polys = parseWktPolygons(gKey ? b[gKey] : "");
     const ring = polys[0] || [];
     return {
       code: String(b.codi_barri || b.Codi_barri || "").trim(),

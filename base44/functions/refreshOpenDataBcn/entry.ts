@@ -13,7 +13,8 @@ import {
   loadBoundaries,
   resolveArea,
   rowValue,
-  minMax10
+  minMax10,
+  normalizeName
 } from './util.ts';
 
 type AnyClient = any;
@@ -41,6 +42,9 @@ export default async function (req: any) {
     : DATASETS;
 
   const results: any[] = [];
+  // boundary-code -> matched entity, carried from boundaries step to indicator step
+  const barriEntByBCode = new Map<string, any>();
+  const dEntByCode = new Map<string, any>();
 
   // ---- 1. Boundaries (run first so other datasets can geo-assign) ----
   const boundsCfg = targets.find((d) => d.mode === 'boundaries');
@@ -52,12 +56,14 @@ export default async function (req: any) {
 
       const existingBarri = await asArr(db, 'Barri');
       const existingDist = await asArr(db, 'District');
-      const bByCode = new Map(existingBarri.map((b: any) => [String(b.code), b]));
-      const dByCode = new Map(existingDist.map((d: any) => [String(d.code), d]));
+      const bByNorm = new Map(existingBarri.map((b: any) => [normalizeName(b.name), b]));
+      const dByCodeMap = new Map(existingDist.map((d: any) => [String(d.code), d]));
+      const dByNorm = new Map(existingDist.map((d: any) => [normalizeName(d.name), d]));
 
       const bUpdates = barris.map((b) => {
         const ring = b.polys[0] || [];
-        const ent = bByCode.get(String(b.code));
+        const ent = bByNorm.get(normalizeName(b.name));
+        if (ent) barriEntByBCode.set(String(b.code), ent);
         return ent ? {
           id: ent.id,
           geometry: { type: 'Polygon', coordinates: [ring] },
@@ -67,7 +73,8 @@ export default async function (req: any) {
       }).filter(Boolean);
       const dUpdates = districts.map((d) => {
         const ring = d.polys[0] || [];
-        const ent = dByCode.get(String(d.code));
+        const ent = dByCodeMap.get(String(d.code)) || dByNorm.get(normalizeName(d.name));
+        if (ent) dEntByCode.set(String(d.code), ent);
         return ent ? {
           id: ent.id,
           geometry: { type: 'Polygon', coordinates: [ring] },
@@ -112,6 +119,8 @@ export default async function (req: any) {
     } catch {}
     if (polys.length) polyBarris.push({ id: b.id, code, polys });
   }
+  // Merge boundary (CKAN codi_barri) codes so indicator rows can resolve by code.
+  for (const [bcode, ent] of barriEntByBCode) barriByCode.set(String(bcode), ent);
   const polyDistricts: any[] = [];
   const districtByCode = new Map<string, any>();
   for (const d of districts) {
@@ -126,6 +135,7 @@ export default async function (req: any) {
     } catch {}
     if (polys.length) polyDistricts.push({ id: d.id, code, polys });
   }
+  for (const [dcode, ent] of dEntByCode) districtByCode.set(String(dcode), ent);
 
   // Accumulate category scores per area across datasets (for averaging shared categories).
   const catAcc = new Map<string, Map<string, { sum: number; count: number }>>(); // areaKey -> catKey -> {sum,count}
