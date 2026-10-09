@@ -1,10 +1,30 @@
+import { useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
-import { MapContainer, TileLayer, Polygon, CircleMarker } from "react-leaflet";
+import { MapContainer, TileLayer, Polygon, CircleMarker, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { useDistrict, useBarri } from "@/lib/useAreas";
 import { useProfile } from "@/lib/useProfile";
 import { CATEGORIES, CATEGORY_MAP, INDICATORS } from "@/lib/categories";
-import { matchScore, scoreColor, isStale } from "@/lib/scoring";
+import { matchScore, scoreColor, isStale, categoryScoresFromArea } from "@/lib/scoring";
+
+// Fit the detail map tightly to the area's boundary so the polygon is centered
+// and fills the frame (no matter whether it is a district or a barri).
+function FitBounds({ area }) {
+  const map = useMap();
+  useEffect(() => {
+    const ring = area.geometry?.coordinates?.[0];
+    if (!ring || ring.length < 4) return;
+    const pts = ring.map(([lon, lat]) => [lat, lon]);
+    const lats = pts.map((p) => p[0]);
+    const lons = pts.map((p) => p[1]);
+    const pad = 0.004;
+    map.fitBounds(
+      [[Math.min(...lats) - pad, Math.min(...lons) - pad], [Math.max(...lats) + pad, Math.max(...lons) + pad]],
+      { animate: false }
+    );
+  }, [area, map]);
+  return null;
+}
 import ScoreBadge from "@/components/ScoreBadge";
 import ScoreBar from "@/components/ScoreBar";
 import CategoryIcon from "@/components/CategoryIcon";
@@ -21,7 +41,7 @@ export default function AreaDetail() {
   const a = q.data;
   if (!a) return <div className="p-8 text-center">Area not found. <Link to="/results" className="text-primary underline">Back</Link></div>;
 
-  const scores = a.category_scores || {};
+  const scores = categoryScoresFromArea(a);
   const weights = {};
   (profile?.priorities || []).forEach((p) => (weights[p.category_key] = p.weight));
   const ms = Object.keys(weights).length ? matchScore(scores, weights) : null;
@@ -31,6 +51,8 @@ export default function AreaDetail() {
   const watch = [...sorted].sort((x, y) => x.score - y.score).slice(0, 3);
 
   const position = a.centroid ? [a.centroid.lat, a.centroid.lon] : [41.395, 2.16];
+  const polyRing = a.geometry?.coordinates?.[0];
+  const polyPositions = polyRing && polyRing.length >= 4 ? polyRing.map(([lon, lat]) => [lat, lon]) : null;
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-6">
@@ -73,11 +95,13 @@ export default function AreaDetail() {
       {/* mini map */}
       <div className="mt-5 rounded-xl border overflow-hidden h-52">
         <MapContainer center={position} zoom={13} className="h-full w-full" scrollWheelZoom={false}>
-          <TileLayer url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png" attribution="&copy; OSM &copy; CARTO" />
-          {type === "district" && a.geometry?.coordinates?.[0] && (
-            <Polygon positions={a.geometry.coordinates[0].map(([lon, lat]) => [lat, lon])} pathOptions={{ color: "#0ea5e9", weight: 1.5, fillColor: scoreColor((ms || 50) / 10 + 1), fillOpacity: 0.4 }} />
+          <TileLayer url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}" attribution="Tiles &copy; Esri" maxZoom={19} />
+          <FitBounds area={a} />
+          {polyPositions ? (
+            <Polygon positions={polyPositions} pathOptions={{ color: "#0ea5e9", weight: 1.5, fillColor: scoreColor((ms || 50) / 10 + 1), fillOpacity: 0.4 }} />
+          ) : (
+            <CircleMarker center={position} radius={7} pathOptions={{ color: "#0f172a", fillColor: "#0ea5e9", fillOpacity: 0.9 }} />
           )}
-          <CircleMarker center={position} radius={6} pathOptions={{ color: "#0f172a", fillColor: "#0ea5e9", fillOpacity: 0.9 }} />
         </MapContainer>
       </div>
 

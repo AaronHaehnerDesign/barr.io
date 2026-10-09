@@ -20,8 +20,11 @@ export default function Compare() {
   const [type, setType] = useState("district");
   const [selected, setSelected] = useState([]); // ids
   const [picker, setPicker] = useState(false);
+  const [cat, setCat] = useState("all"); // active category tab
   const preselectRef = useRef(null);
   const manualRef = useRef(false); // true once the user picks areas by hand
+
+  const palette = ["#0ea5e9", "#f59e0b", "#a855f7"];
 
   // Preselect the user's top recommended area. Re-runs when priorities/profile
   // change, so the recommendation always reflects the latest preferences —
@@ -64,7 +67,25 @@ export default function Compare() {
     return row;
   }), [chosen]);
 
-  const palette = ["#0ea5e9", "#f59e0b", "#a855f7"];
+  // Tab order: the user's highest-weighted categories first, then the rest.
+  const tabKeys = useMemo(() => {
+    const priKeys = (profile?.priorities || [])
+      .slice().sort((a, b) => (b.weight || 0) - (a.weight || 0))
+      .map((p) => p.category_key)
+      .filter((k) => CATEGORY_MAP[k]);
+    const otherKeys = CATEGORIES.filter((c) => !priKeys.includes(c.key)).sort((a, b) => a.order - b.order).map((c) => c.key);
+    return ["all", ...priKeys, ...otherKeys];
+  }, [profile]);
+
+  const focusedIndicators = useMemo(
+    () => (cat === "all" ? INDICATORS : INDICATORS.filter((ind) => ind.category_key === cat)),
+    [cat]
+  );
+
+  const focusedScores = useMemo(() => {
+    if (cat === "all") return null;
+    return chosen.map((a, i) => ({ name: a.name, color: palette[i], score: categoryScoresFromArea(a)[cat] ?? null }));
+  }, [cat, chosen]);
 
   function toggle(id) {
     manualRef.current = true;
@@ -78,6 +99,7 @@ export default function Compare() {
     setSelected([]);
   }
 
+  const [saveMsg, setSaveMsg] = useState(false);
   async function saveComparison() {
     if (chosen.length < 2) return;
     await base44.entities.SavedComparison.create({
@@ -89,7 +111,6 @@ export default function Compare() {
     setSaveMsg(true);
     setTimeout(() => setSaveMsg(false), 2000);
   }
-  const [saveMsg, setSaveMsg] = useState(false);
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-6">
@@ -135,23 +156,61 @@ export default function Compare() {
         <p className="text-center text-muted-foreground py-16">Pick 2 or 3 {type === "district" ? "districts" : "barris"} to compare side by side.</p>
       ) : (
         <>
-          <div className="rounded-xl border bg-card p-4 mb-4">
-            <h2 className="text-sm font-medium text-muted-foreground mb-2">Category scores (1–10)</h2>
-            <div className="h-72">
-              <ResponsiveContainer width="100%" height="100%">
-                <RadarChart data={radarData}>
-                  <PolarGrid />
-                  <PolarAngleAxis dataKey="category" tick={{ fontSize: 10 }} />
-                  <PolarRadiusAxis domain={[0, 10]} tick={false} />
-                  {chosen.map((a, i) => (
-                    <Radar key={a.id} name={a.name} dataKey={a.name} stroke={palette[i]} fill={palette[i]} fillOpacity={0.15} />
-                  ))}
-                  <Legend wrapperStyle={{ fontSize: 12 }} />
-                </RadarChart>
-              </ResponsiveContainer>
-            </div>
+          {/* category tabs: separate by main category; ordered by your priority */}
+          <div className="flex flex-wrap gap-1.5 mb-4">
+            {tabKeys.map((k) => {
+              const active = cat === k;
+              const label = k === "all" ? "All" : CATEGORY_MAP[k].name;
+              return (
+                <button key={k} onClick={() => setCat(k)}
+                  className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs ${active ? "bg-primary text-primary-foreground" : "border hover:bg-muted"}`}>
+                  {k !== "all" && <CategoryIcon categoryKey={k} className="h-3 w-3" />}
+                  {label}
+                </button>
+              );
+            })}
           </div>
 
+          {/* category scores */}
+          <div className="rounded-xl border bg-card p-4 mb-4">
+            <h2 className="text-sm font-medium text-muted-foreground mb-2">
+              {cat === "all" ? "Category scores (1–10)" : `${CATEGORY_MAP[cat].name} score (1–10)`}
+            </h2>
+            {cat === "all" ? (
+              <div className="h-72">
+                <ResponsiveContainer width="100%" height="100%">
+                  <RadarChart data={radarData}>
+                    <PolarGrid />
+                    <PolarAngleAxis dataKey="category" tick={{ fontSize: 10 }} />
+                    <PolarRadiusAxis domain={[0, 10]} tick={false} />
+                    {chosen.map((a, i) => (
+                      <Radar key={a.id} name={a.name} dataKey={a.name} stroke={palette[i]} fill={palette[i]} fillOpacity={0.15} />
+                    ))}
+                    <Legend wrapperStyle={{ fontSize: 12 }} />
+                  </RadarChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {focusedScores.map((s) => (
+                  <div key={s.name}>
+                    <div className="mb-1 flex items-center justify-between text-sm">
+                      <span className="flex items-center gap-2">
+                        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: s.color }} />
+                        {s.name}
+                      </span>
+                      <ScoreBadge score={s.score} size="sm" />
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-muted">
+                      <div className="h-full rounded-full" style={{ width: `${((s.score || 0) / 10) * 100}%`, backgroundColor: s.color }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* indicators table, filtered by the active category tab */}
           <div className="rounded-xl border bg-card overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -161,14 +220,14 @@ export default function Compare() {
                 </tr>
               </thead>
               <tbody>
-                {INDICATORS.map(ind => (
+                {focusedIndicators.map(ind => (
                   <tr key={ind.name} className="border-b last:border-0">
                     <td className="p-3">
                       <div className="flex items-center gap-2">
                         <CategoryIcon categoryKey={ind.category_key} className="h-3.5 w-3.5 text-muted-foreground" />
                         <span>{ind.name}</span>
                       </div>
-                      <span className="text-[11px] text-muted-foreground ml-5.5">{ind.unit}{ind.external ? " · external" : ""}</span>
+                      <span className="ml-5.5 text-[11px] text-muted-foreground">{ind.unit}{ind.external ? " · external" : ""}</span>
                     </td>
                     {chosen.map(a => {
                       const iv = (a.indicators || []).find(x => x.indicator_name === ind.name);
@@ -185,6 +244,9 @@ export default function Compare() {
                     })}
                   </tr>
                 ))}
+                {focusedIndicators.length === 0 && (
+                  <tr><td className="p-4 text-center text-sm text-muted-foreground" colSpan={chosen.length + 1}>No indicators for this category yet.</td></tr>
+                )}
               </tbody>
             </table>
           </div>
