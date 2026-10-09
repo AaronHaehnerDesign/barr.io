@@ -256,6 +256,7 @@ export async function loadBoundaries(): Promise<{
 }
 
 // Resolve an area for a data row: by barri code, then district code, then point-in-polygon.
+// Field matching is case-insensitive (Barcelona's CKAN columns are uppercase).
 export function resolveArea(
   row: Record<string, any>,
   barriByCode: Map<string, any>,
@@ -263,41 +264,47 @@ export function resolveArea(
   polyBarris: any[],
   polyDistricts: any[]
 ): { area_type: "barri" | "district"; area_code: string; area_id: string } | null {
-  const codeKeys = ["codi_barri", "Codi_barri", "Codi Barri", "codibarri", "barri", "Codi_barri"];
-  const distKeys = ["codi_districte", "Codi_districte", "Codi districte", "districte"];
-  const latKeys = ["lat", "Lat", "latitude", "LATITUDE", "y", "coord_y"];
-  const lonKeys = ["lon", "Lng", "lng", "longitude", "LONGITUDE", "x", "coord_x"];
+  const lower: Record<string, any> = {};
+  for (const k of Object.keys(row)) lower[k.toLowerCase()] = row[k];
 
-  for (const k of codeKeys) {
-    const v = row[k];
-    if (v != null && String(v).trim()) {
-      const code = String(v).trim();
-      const b = barriByCode.get(code) || barriByCode.get(code.padStart(2, "0"));
-      if (b) return { area_type: "barri", area_code: code, area_id: b.id };
+  const barriKeys = ["codi_barri", "codibarri", "barri", "barri_id", "id_barri", "neighbourhood", "neighborhood", "codi barri"];
+  const distKeys = ["codi_districte", "districte", "district", "district_id", "codi_district", "districte_id", "codi districte"];
+  const latKeys = ["latitud", "latitude", "lat", "y", "coord_y", "etrs89_coord_y", "ed50_coord_y"];
+  const lonKeys = ["longitud", "longitude", "lon", "lng", "x", "coord_x", "etrs89_coord_x", "ed50_coord_x"];
+
+  const find = (map: Map<string, any>, raw: any) => {
+    const s = String(raw).trim();
+    return map.get(s) || map.get(s.padStart(2, "0")) || (String(Number(s)) !== "NaN" ? map.get(String(Number(s))) : undefined);
+  };
+
+  for (const k of barriKeys) {
+    const v = lower[k];
+    if (v != null && String(v).trim() !== "") {
+      const b = find(barriByCode, v);
+      if (b) return { area_type: "barri", area_code: String(v).trim(), area_id: b.id };
     }
   }
   for (const k of distKeys) {
-    const v = row[k];
-    if (v != null && String(v).trim()) {
-      const code = String(v).trim();
-      const d = districtByCode.get(code) || districtByCode.get(code.padStart(2, "0"));
-      if (d) return { area_type: "district", area_code: code, area_id: d.id };
+    const v = lower[k];
+    if (v != null && String(v).trim() !== "") {
+      const d = find(districtByCode, v);
+      if (d) return { area_type: "district", area_code: String(v).trim(), area_id: d.id };
     }
   }
-  // Point-in-polygon fallback
-  let lat: any, lon: any;
-  for (const k of latKeys) if (row[k] != null) { lat = row[k]; break; }
-  for (const k of lonKeys) if (row[k] != null) { lon = row[k]; break; }
-  if (lat != null && lon != null && Number.isFinite(Number(lat)) && Number.isFinite(Number(lon))) {
-    const pt = [Number(lon), Number(lat)];
+  // Point-in-polygon fallback (uses WGS84 lat/lon when present)
+  let latV: any, lonV: any;
+  for (const k of latKeys) if (lower[k] != null && lower[k] !== "") { latV = lower[k]; break; }
+  for (const k of lonKeys) if (lower[k] != null && lower[k] !== "") { lonV = lower[k]; break; }
+  if (latV != null && lonV != null && Number.isFinite(Number(latV)) && Number.isFinite(Number(lonV))) {
+    const pt = [Number(lonV), Number(latV)];
     for (const b of polyBarris) if (pointInPolygons(pt, b.polys)) return { area_type: "barri", area_code: b.code, area_id: b.id };
     for (const d of polyDistricts) if (pointInPolygons(pt, d.polys)) return { area_type: "district", area_code: d.code, area_id: d.id };
   }
   return null;
 }
 
-// Numerical value extraction: find the first numeric-looking column (excluding code/coord fields).
-const NON_VALUE = /^(codi|nom|id|_id|geom|latitude|longitude|lat|lng|lon|coord|x_|y_|the_geom|wkt)/i;
+// Numerical value extraction: find the first numeric-looking column (excluding code/name/coord/metadata fields).
+const NON_VALUE = /^(codi|nom|id|_id|geom|latitude|latitud|longitude|longitud|lat|lng|lon|coord|etrs89|ed50|x_|y_|the_geom|wkt|barri|districte|district|adreca|telefon|equipament|capa|layer|tipus|tipo|sexe|any|year|data|date|_links|_id$)/i;
 export function rowValue(row: Record<string, any>): number | null {
   for (const [k, v] of Object.entries(row)) {
     if (NON_VALUE.test(k)) continue;
