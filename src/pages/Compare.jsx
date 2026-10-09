@@ -1,10 +1,10 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Legend } from "recharts";
 import { useDistricts, useBarris } from "@/lib/useAreas";
 import { useProfile } from "@/lib/useProfile";
-import { CATEGORIES, CATEGORY_MAP, INDICATORS } from "@/lib/categories";
-import { categoryScoresFromArea } from "@/lib/scoring";
+import { CATEGORIES, CATEGORY_MAP, INDICATORS, PERSONA_FLIPS } from "@/lib/categories";
+import { categoryScoresFromArea, matchScore } from "@/lib/scoring";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
 import ScoreBadge from "@/components/ScoreBadge";
@@ -20,6 +20,36 @@ export default function Compare() {
   const [type, setType] = useState("district");
   const [selected, setSelected] = useState([]); // ids
   const [picker, setPicker] = useState(false);
+  const preselectRef = useRef(null);
+
+  // Preselect the user's top recommended area once per level.
+  useEffect(() => {
+    if (selected.length) return;
+    if (preselectRef.current === type) return;
+    const data = type === "district" ? districts.data : barris.data;
+    if (!data || !data.length) return;
+    const pri = profile?.priorities;
+    if (!pri || !pri.length) return;
+    const w = {};
+    pri.forEach((p) => (w[p.category_key] = p.weight));
+    const flip = (profile?.persona && PERSONA_FLIPS[profile.persona]) || {};
+    const scored = data
+      .map((a) => {
+        const cs = {};
+        CATEGORIES.forEach((c) => {
+          let s = a.category_scores?.[c.key];
+          if (s == null) { cs[c.key] = null; return; }
+          if (flip[c.key] === "negative") s = 11 - s;
+          cs[c.key] = Math.max(1, Math.min(10, Math.round(s * 10) / 10));
+        });
+        return { id: a.id, ms: matchScore(cs, w) };
+      })
+      .sort((a, b) => b.ms - a.ms);
+    if (scored[0]) {
+      setSelected([scored[0].id]);
+      preselectRef.current = type;
+    }
+  }, [type, districts.data, barris.data, profile, selected]);
 
   const areas = type === "district" ? (districts.data || []).map(a => ({ ...a, _type: "district" })) : (barris.data || []).map(a => ({ ...a, _type: "barri" }));
   const chosen = selected.map(id => areas.find(a => a.id === id)).filter(Boolean);

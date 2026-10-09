@@ -3,11 +3,11 @@ import { base44 } from "@/api/base44Client";
 import { Map, ListOrdered, GitCompareArrows, User, LogOut, Home, SlidersHorizontal, Bot } from "lucide-react";
 
 const NAV = [
+  { to: "/agent", label: "Agent", icon: Bot },
   { to: "/results", label: "Results", icon: ListOrdered },
   { to: "/map", label: "Map", icon: Map },
   { to: "/compare", label: "Compare", icon: GitCompareArrows },
-  { to: "/priorities", label: "Priorities", icon: SlidersHorizontal },
-  { to: "/agent", label: "Agent", icon: Bot }
+  { to: "/priorities", label: "Priorities", icon: SlidersHorizontal }
 ];
 
 const sideLinkClass = ({ isActive }) =>
