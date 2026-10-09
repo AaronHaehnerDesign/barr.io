@@ -1,293 +1,226 @@
-// BarrioMatch Open Data BCN refresh.
-// Admin-only. Loads barri boundaries, then for each requested dataset fetches the
-// latest CKAN resource, assigns rows to barris (by barri code, else point-in-polygon),
-// aggregates per barri and per district, normalises to 1-10, and writes
-// IndicatorValue + CategoryScore. Also updates Barri/District entities so the UI
-// reflects real scores, and a DataSyncStatus record per dataset.
-import { createClientFromRequest } from "npm:@base44/sdk@0.8.52";
+// Admin-only refresh of Open Data BCN indicators.
+// Loads district + barri boundaries first (so rows can be geo-assigned), then
+// for each dataset: fetches rows via the CKAN Datastore API, groups them by area
+// (count or value), normalises to 1–10, writes IndicatorValue records and updates
+// each area's category_scores. Records per-dataset status in DataSyncStatus.
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.53';
 import {
-  DATASETS, datasetConfig, packageShow, pickResource, resourceLastModified,
-  downloadText, parseCSV, parseJSON, barriCol, districtCol, latLonCols, valueCol,
-  toNum, normCode, pointInGeometry, polygonAreaKm2, polygonCentroid, minMax10
-} from "./util.ts";
+  DATASETS,
+  packageShow,
+  listResources,
+  pickResource,
+  fetchRows,
+  loadBoundaries,
+  resolveArea,
+  rowValue,
+  minMax10
+} from './util.ts';
 
-const ALL_CODES = DATASETS.map((d) => d.code);
+type AnyClient = any;
 
-export default async function(req) {
-  try {
-    const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
-    if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
-    if (user.role !== "admin") return Response.json({ error: "Forbidden" }, { status: 403 });
+async function asArr(db: AnyClient, entity: string, limit = 2000) {
+  const res = await db.entities[entity].filter({}, { limit });
+  return Array.isArray(res) ? res : (res.items ?? []);
+}
 
-    const body = await req.json().catch(() => ({}));
-    const requested = Array.isArray(body.datasets) && body.datasets.length
-      ? body.datasets.map((c) => String(c))
-      : ALL_CODES;
+function catKeyFor(cfg: AnyClient) {
+  return cfg.category_key;
+}
 
-    const db = base44.asServiceRole;
-    const results = [];
+export default async function (req: any) {
+  const base44 = createClientFromRequest(req);
+  const user = await base44.auth.me().catch(() => null);
+  if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  if (user.role !== 'admin') return Response.json({ error: 'Admins only' }, { status: 403 });
 
-    // --- load barri + district master from entities (population, ids) ---
-    const [barriPage, distPage] = await Promise.all([
-      db.entities.Barri.filter({}, { limit: 200 }),
-      db.entities.District.filter({}, { limit: 50 })
-    ]);
-    const barriById = {};   // numeric code string -> entity
-    for (const b of barriPage.items || []) {
-      const c = normCode(b.code) || String(b.code);
-      barriById[c] = b;
-    }
-    const distById = {};
-    for (const d of distPage.items || []) {
-      const c = normCode(d.code) || String(d.code);
-      distById[c] = d;
-    }
+  const db = base44.asServiceRole;
+  const body = await req.json().catch(() => ({}));
+  const requested: string[] | undefined = Array.isArray(body?.datasets) ? body.datasets : undefined;
+  const targets = requested && requested.length
+    ? DATASETS.filter((d) => requested.includes(d.code))
+    : DATASETS;
 
-    // --- load boundaries (always, for PIP fallback + master list) ---
-    let barris = []; // { code, name, districte, districte_name, polygon, centroid, areaKm2, pop, entityId }
-    const boundariesCfg = datasetConfig("20170706-districtes-barris");
-    const bStatus = await runDataset(boundariesCfg, async () => {
-      const pkg = await packageShow(boundariesCfg.code);
-      const res = pickResource(pkg, boundariesCfg);
-      const text = await downloadText(res.url);
-      const geo = parseJSON(text);
-      const feats = geo.features || [];
-      barris = feats.map((f) => {
-        const p = f.properties || {};
-        const code = normCode(p.Codi_Barri ?? p.codi_barri ?? p.BARRI ?? p.barri);
-        return {
-          code,
-          name: p.Nom_Barri || p.nom_barri || p.NOM_BARRI || "",
-          districte: normCode(p.Codi_Districte ?? p.codi_districte ?? p.DISTRICTE ?? p.districte),
-          districte_name: p.Nom_Districte || p.nom_districte || "",
-          polygon: f.geometry,
-          centroid: polygonCentroid(f.geometry),
-          areaKm2: polygonAreaKm2(f.geometry),
-          pop: barriById[code]?.population || 0,
-          entityId: barriById[code]?.id || null
-        };
-      }).filter((b) => b.code);
-      // population fallback: build code -> pop; also district pop = sum of barri pops
-      return { records: barris.length, resource: res };
-    }, db);
-    results.push(bStatus);
+  const results: any[] = [];
 
-    // master district set from boundaries (unique districte codes)
-    const districtCodes = Array.from(new Set(barris.map((b) => b.districte).filter(Boolean)));
-    const districtPop = {};
-    for (const c of districtCodes) districtPop[c] = 0;
-    for (const b of barris) {
-      if (b.districte) districtPop[b.districte] = (districtPop[b.districte] || 0) + b.pop;
-    }
-
-    // merged category scores to push back onto Barri/District entities
-    const barriCat = {}; // code -> { catKey: score }
-    const distCat = {};
-    const seedFromEntity = (e, target) => {
-      if (e && e.category_scores) for (const k of Object.keys(e.category_scores)) target[k] = e.category_scores[k];
-    };
-    for (const b of barris) { barriCat[b.code] = {}; seedFromEntity(barriById[b.code], barriCat[b.code]); }
-    for (const c of districtCodes) { distCat[c] = {}; seedFromEntity(distById[c], distCat[c]); }
-
-    // --- process each non-boundaries dataset ---
-    for (const code of requested) {
-      const cfg = datasetConfig(code);
-      if (!cfg || cfg.role === "boundaries") continue;
-
-      const status = await runDataset(cfg, async () => {
-        const pkg = await packageShow(cfg.code);
-        const res = pickResource(pkg, cfg);
-        const text = await downloadText(res.url);
-        const isJson = /json/i.test(res.format || "") && cfg.format === "JSON";
-        const { headers, rows } = isJson ? jsonToRows(parseJSON(text)) : parseCSV(text);
-
-        const bIdx = barriCol(headers);
-        const dIdx = districtCol(headers);
-        const ll = latLonCols(headers);
-        const vIdx = cfg.role === "count" ? -1 : valueCol(headers, rows, cfg.valueHint);
-
-        if (cfg.role !== "count" && vIdx < 0) throw new Error("no numeric value column found");
-
-        // raw metric per barri code
-        const barriRaw = {}; // code -> number (sum for count, mean accumulator for value/pointvalue)
-        const barriCnt = {};
-        let maxPoints = cfg.maxPoints || 200000;
-        let processed = 0;
-
-        for (const r of rows) {
-          if (processed >= maxPoints) break;
-          let bcode = bIdx >= 0 ? normCode(r[bIdx]) : null;
-          if (!bcode && ll) {
-            const lat = toNum(r[ll.lat]);
-            const lon = toNum(r[ll.lon]);
-            if (lat != null && lon != null) {
-              const hit = barris.find((b) => pointInGeometry([lon, lat], b.polygon));
-              if (hit) bcode = hit.code;
-            }
-          }
-          if (!bcode) continue;
-          processed++;
-
-          if (cfg.role === "count") {
-            barriRaw[bcode] = (barriRaw[bcode] || 0) + 1;
-          } else {
-            const val = toNum(r[vIdx]);
-            if (val == null) continue;
-            barriRaw[bcode] = (barriRaw[bcode] || 0) + val;
-            barriCnt[bcode] = (barriCnt[bcode] || 0) + 1;
-          }
-        }
-
-        // finalise barri metrics: count -> per capita (per-km2 if no pop); value -> maybe per-capita; pointvalue -> average
-        const barriMetric = barris.map((b) => {
-          const raw = barriRaw[b.code] != null ? barriRaw[b.code] : null;
-          if (raw == null) return { code: b.code, raw: null };
-          let metric = raw;
-          if (cfg.role === "count") {
-            const denom = b.pop > 0 ? b.pop / cfg.per : b.areaKm2 > 0 ? b.areaKm2 : 1;
-            metric = raw / denom;
-          } else if (cfg.role === "pointvalue") {
-            metric = barriCnt[b.code] > 0 ? raw / barriCnt[b.code] : raw;
-          } else if (cfg.role === "value" && cfg.perCapita) {
-            const denom = b.pop > 0 ? b.pop / cfg.per : (b.areaKm2 > 0 ? b.areaKm2 : 1);
-            metric = raw / denom;
-          }
-          return { code: b.code, raw: metric };
-        });
-
-        // district metric: count -> sum counts / district pop; value -> pop-weighted mean; pointvalue -> area-weighted mean
-        const distRaw = {};
-        const distW = {};
-        for (const m of barriMetric) {
-          if (m.raw == null) continue;
-          const b = barris.find((x) => x.code === m.code);
-          if (!b || !b.districte) continue;
-          const w = cfg.role === "pointvalue" ? (b.areaKm2 || 1) : (b.pop || b.areaKm2 || 1);
-          distRaw[b.districte] = (distRaw[b.districte] || 0) + (cfg.role === "count" ? m.raw * (b.pop > 0 ? b.pop / cfg.per : 1) : m.raw * w);
-          distW[b.districte] = (distW[b.districte] || 0) + (cfg.role === "count" ? 1 : w);
-        }
-        const distMetric = districtCodes.map((c) => {
-          if (distRaw[c] == null) return { code: c, raw: null };
-          let metric;
-          if (cfg.role === "count") {
-            const denom = districtPop[c] > 0 ? districtPop[c] / cfg.per : 1;
-            metric = denom > 0 ? distRaw[c] / denom : distRaw[c];
-          } else {
-            metric = distW[c] > 0 ? distRaw[c] / distW[c] : distRaw[c];
-          }
-          return { code: c, raw: metric };
-        });
-
-        // normalise 1-10
-        const bScores = minMax10(barriMetric.map((m) => m.raw), cfg.direction);
-        const dScores = minMax10(distMetric.map((m) => m.raw), cfg.direction);
-
-        // write IndicatorValue (delete old for this indicator, then bulkCreate)
-        const indicatorValues = [];
-        barris.forEach((b, i) => {
-          if (bScores[i] == null) return;
-          indicatorValues.push({
-            indicator_name: cfg.indicator_name, category_key: cfg.category_key,
-            area_type: "barri", area_id: b.entityId || b.code, area_code: b.code,
-            raw_value: barriMetric[i].raw, normalized_score: bScores[i], year: cfg.year || null
-          });
-        });
-        districtCodes.forEach((c, i) => {
-          if (dScores[i] == null) return;
-          indicatorValues.push({
-            indicator_name: cfg.indicator_name, category_key: cfg.category_key,
-            area_type: "district", area_id: distById[c]?.id || c, area_code: c,
-            raw_value: distMetric[i].raw, normalized_score: dScores[i], year: cfg.year || null
-          });
-        });
-        await db.entities.IndicatorValue.deleteMany({ indicator_name: cfg.indicator_name });
-        if (indicatorValues.length) await db.entities.IndicatorValue.bulkCreate(indicatorValues);
-
-        // recompute CategoryScore for this category (mean of all its indicators per area)
-        const catIndicators = await db.entities.IndicatorValue.filter(
-          { category_key: cfg.category_key }, { limit: 500 }
-        );
-        const byArea = {}; // "type|area_id" -> { sum, count, area_code, type, id }
-        for (const iv of catIndicators.items || []) {
-          const key = iv.area_type + "|" + iv.area_id;
-          if (!byArea[key]) byArea[key] = { sum: 0, count: 0, area_type: iv.area_type, area_id: iv.area_id, area_code: iv.area_code };
-          if (iv.normalized_score != null) { byArea[key].sum += iv.normalized_score; byArea[key].count++; }
-        }
-        const catScores = Object.values(byArea).filter((a) => a.count > 0).map((a) => ({
-          category_key: cfg.category_key, area_type: a.area_type, area_id: a.area_id,
-          area_code: a.area_code, score: Math.round((a.sum / a.count) * 10) / 10
-        }));
-        await db.entities.CategoryScore.deleteMany({ category_key: cfg.category_key });
-        if (catScores.length) await db.entities.CategoryScore.bulkCreate(catScores);
-
-        // stash merged category scores for entity update
-        for (const a of catScores) {
-          if (a.area_type === "barri" && barriCat[a.area_code]) barriCat[a.area_code][cfg.category_key] = a.score;
-          if (a.area_type === "district" && distCat[a.area_code]) distCat[a.area_code][cfg.category_key] = a.score;
-        }
-
-        return { records: indicatorValues.length, resource: res };
-      }, db);
-      results.push(status);
-    }
-
-    // --- push category_scores back onto Barri + District entities ---
+  // ---- 1. Boundaries (run first so other datasets can geo-assign) ----
+  const boundsCfg = targets.find((d) => d.mode === 'boundaries');
+  const otherDs = targets.filter((d) => d.mode !== 'boundaries');
+  if (boundsCfg) {
+    const startedAt = new Date().toISOString();
     try {
-      const bUpdates = barris.filter((b) => b.entityId).map((b) => ({
-        id: b.entityId, category_scores: barriCat[b.code] || {}, is_sample: false
-      }));
+      const { districts, barris } = await loadBoundaries();
+
+      const existingBarri = await asArr(db, 'Barri');
+      const existingDist = await asArr(db, 'District');
+      const bByCode = new Map(existingBarri.map((b: any) => [String(b.code), b]));
+      const dByCode = new Map(existingDist.map((d: any) => [String(d.code), d]));
+
+      const bUpdates = barris.map((b) => {
+        const ring = b.polys[0] || [];
+        const ent = bByCode.get(String(b.code));
+        return ent ? {
+          id: ent.id,
+          geometry: { type: 'Polygon', coordinates: [ring] },
+          centroid: { lon: b.centroid[0], lat: b.centroid[1] },
+          is_sample: false
+        } : null;
+      }).filter(Boolean);
+      const dUpdates = districts.map((d) => {
+        const ring = d.polys[0] || [];
+        const ent = dByCode.get(String(d.code));
+        return ent ? {
+          id: ent.id,
+          geometry: { type: 'Polygon', coordinates: [ring] },
+          centroid: { lon: d.centroid[0], lat: d.centroid[1] },
+          is_sample: false
+        } : null;
+      }).filter(Boolean);
+
       if (bUpdates.length) await db.entities.Barri.bulkUpdate(bUpdates);
-      const dUpdates = districtCodes.filter((c) => distById[c]?.id).map((c) => ({
-        id: distById[c].id, category_scores: distCat[c] || {}, is_sample: false
-      }));
       if (dUpdates.length) await db.entities.District.bulkUpdate(dUpdates);
-    } catch (e) {
-      results.push({ dataset_code: "_entities", status: "error", error: e.message, finished_at: new Date().toISOString() });
+
+      results.push({
+        dataset_code: boundsCfg.code,
+        status: 'success',
+        records_written: bUpdates.length + dUpdates.length,
+        error: null,
+        resource_last_modified: null,
+        finished_at: new Date().toISOString()
+      });
+      await upsertStatus(db, boundsCfg.code, 'success', bUpdates.length + dUpdates.length, null, startedAt);
+    } catch (e: any) {
+      results.push({ dataset_code: boundsCfg.code, status: 'error', records_written: 0, error: e.message, resource_last_modified: null, finished_at: new Date().toISOString() });
+      await upsertStatus(db, boundsCfg.code, 'error', 0, e.message, startedAt);
     }
-
-    return Response.json({ results });
-  } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
   }
+
+  // ---- 2. Indicator datasets ----
+  // Reload areas to build geo-lookup maps carrying the freshly-written polygons.
+  const barris = await asArr(db, 'Barri');
+  const districts = await asArr(db, 'District');
+  const polyBarris: any[] = [];
+  const barriByCode = new Map<string, any>();
+  for (const b of barris) {
+    const code = String(b.code);
+    barriByCode.set(code, b);
+    barriByCode.set(code.padStart(2, '0'), b);
+    let polys: number[][][] = [];
+    try {
+      const g = b.geometry;
+      if (g?.type === 'Polygon' && Array.isArray(g.coordinates)) polys = g.coordinates.map((r: any) => r);
+      else if (g?.type === 'MultiPolygon') polys = g.coordinates.flatMap((p: any) => p);
+    } catch {}
+    if (polys.length) polyBarris.push({ id: b.id, code, polys });
+  }
+  const polyDistricts: any[] = [];
+  const districtByCode = new Map<string, any>();
+  for (const d of districts) {
+    const code = String(d.code);
+    districtByCode.set(code, d);
+    districtByCode.set(code.padStart(2, '0'), d);
+    let polys: number[][][] = [];
+    try {
+      const g = d.geometry;
+      if (g?.type === 'Polygon' && Array.isArray(g.coordinates)) polys = g.coordinates.map((r: any) => r);
+      else if (g?.type === 'MultiPolygon') polys = g.coordinates.flatMap((p: any) => p);
+    } catch {}
+    if (polys.length) polyDistricts.push({ id: d.id, code, polys });
+  }
+
+  // Accumulate category scores per area across datasets (for averaging shared categories).
+  const catAcc = new Map<string, Map<string, { sum: number; count: number }>>(); // areaKey -> catKey -> {sum,count}
+  const areaKey = (t: string, id: string) => `${t}:${id}`;
+
+  for (const cfg of otherDs) {
+    const startedAt = new Date().toISOString();
+    let resourceLastModified: string | null = null;
+    try {
+      const pkg = await packageShow(cfg.code);
+      const res = pickResource(listResources(pkg), cfg);
+      if (!res) throw new Error('No suitable CKAN resource found');
+      resourceLastModified = res.last_modified || null;
+      const rows = await fetchRows(res, 20000);
+
+      // Group rows by area -> raw value (count or summed value)
+      const bucket = new Map<string, { area_type: string; area_id: string; area_code: string; raw: number }>();
+      for (const row of rows) {
+        const a = resolveArea(row, barriByCode, districtByCode, polyBarris, polyDistricts);
+        if (!a) continue;
+        const key = `${a.area_type}:${a.area_id}`;
+        let raw: number;
+        if (cfg.mode === 'count') raw = 1;
+        else { const v = rowValue(row); if (v == null) continue; raw = v; }
+        const prev = bucket.get(key);
+        if (prev) prev.raw += raw;
+        else bucket.set(key, { area_type: a.area_type, area_id: a.area_id, area_code: a.area_code, raw });
+      }
+      if (!bucket.size) throw new Error('No rows matched any district or barri');
+
+      const entries = [...bucket.values()];
+      const norms = minMax10(entries.map((e) => e.raw), cfg.direction || 'positive');
+
+      // Replace any previous IndicatorValue rows for this dataset's indicator.
+      await db.entities.IndicatorValue.deleteMany({ category_key: cfg.category_key, indicator_name: cfg.label }).catch(() => {});
+      const recs = entries.map((e, i) => ({
+        indicator_name: cfg.label,
+        category_key: cfg.category_key,
+        area_type: e.area_type,
+        area_id: e.area_id,
+        area_code: e.area_code,
+        raw_value: Number(e.raw.toFixed(2)),
+        normalized_score: norms[i] ?? null,
+        year: cfg.year || undefined,
+        external: true
+      })).filter((r) => r.normalized_score != null);
+      if (recs.length) await db.entities.IndicatorValue.bulkCreate(recs);
+
+      // Accumulate category scores
+      for (const r of recs) {
+        const ak = areaKey(r.area_type, r.area_id);
+        if (!catAcc.has(ak)) catAcc.set(ak, new Map());
+        const m = catAcc.get(ak)!;
+        const cur = m.get(r.category_key) || { sum: 0, count: 0 };
+        cur.sum += r.normalized_score!;
+        cur.count += 1;
+        m.set(r.category_key, cur);
+      }
+
+      results.push({ dataset_code: cfg.code, status: 'success', records_written: recs.length, error: null, resource_last_modified, finished_at: new Date().toISOString() });
+      await upsertStatus(db, cfg.code, 'success', recs.length, null, startedAt, resourceLastModified);
+    } catch (e: any) {
+      results.push({ dataset_code: cfg.code, status: 'error', records_written: 0, error: e.message, resource_last_modified: resourceLastModified, finished_at: new Date().toISOString() });
+      await upsertStatus(db, cfg.code, 'error', 0, e.message, startedAt, resourceLastModified);
+    }
+  }
+
+  // ---- 3. Write per-area category_scores (averaged across datasets per category) ----
+  const bUpd: any[] = [];
+  const dUpd: any[] = [];
+  for (const [ak, cats] of catAcc) {
+    const [type, id] = ak.split(':');
+    const scores: Record<string, number> = {};
+    for (const [ck, v] of cats) scores[ck] = Number((v.sum / v.count).toFixed(1));
+    if (type === 'barri') bUpd.push({ id, category_scores: scores }); else dUpd.push({ id, category_scores: scores });
+  }
+  if (bUpd.length) await db.entities.Barri.bulkUpdate(bUpd).catch(() => {});
+  if (dUpd.length) await db.entities.District.bulkUpdate(dUpd).catch(() => {});
+
+  return Response.json({ results });
 }
 
-// Flatten a JSON resource (object or array) into { headers, rows }.
-function jsonToRows(json) {
-  const arr = Array.isArray(json) ? json : (json.features ? json.features.map((f) => ({ ...f.properties })) : [json]);
-  if (!arr.length) return { headers: [], rows: [] };
-  const headers = Array.from(new Set(arr.flatMap((o) => Object.keys(o || {}))));
-  const rows = arr.map((o) => headers.map((h) => (o && o[h] != null ? String(o[h]) : "")));
-  return { headers, rows };
-}
-
-// Run one dataset end-to-end, persisting a DataSyncStatus record.
-async function runDataset(cfg, fn, db) {
-  const code = cfg.code;
-  const started = new Date().toISOString();
-  let statusRec = {
-    dataset_code: code, indicator_name: cfg.indicator_name || null, category_key: cfg.category_key || null,
-    status: "running", started_at: started, error_message: null,
-    records_written: 0, resource_last_modified: null, finished_at: null
+async function upsertStatus(db: AnyClient, code: string, status: string, records: number, error: string | null, startedAt: string, resourceLastModified: string | null = null) {
+  const rec: any = {
+    dataset_code: code,
+    status,
+    started_at: startedAt,
+    finished_at: new Date().toISOString(),
+    records_written: records,
+    error_message: error || undefined,
+    resource_last_modified: resourceLastModified || undefined
   };
   try {
-    await db.entities.DataSyncStatus.upsert([statusRec], { key: "dataset_code" });
-    const out = await fn();
-    statusRec.status = "success";
-    statusRec.records_written = out.records || 0;
-    statusRec.resource_last_modified = out.resource ? resourceLastModified(out.resource) : null;
-    statusRec.finished_at = new Date().toISOString();
-  } catch (err) {
-    statusRec.status = "error";
-    statusRec.error_message = String(err.message || err).slice(0, 500);
-    statusRec.finished_at = new Date().toISOString();
+    await db.entities.DataSyncStatus.upsert([rec], { key: 'dataset_code' });
+  } catch {
+    try { await db.entities.DataSyncStatus.create(rec); } catch {}
   }
-  try {
-    await db.entities.DataSyncStatus.upsert([statusRec], { key: "dataset_code" });
-  } catch (_e) { /* status write best-effort */ }
-  return {
-    dataset_code: code, status: statusRec.status, records_written: statusRec.records_written,
-    error: statusRec.error_message, resource_last_modified: statusRec.resource_last_modified,
-    finished_at: statusRec.finished_at
-  };
 }
