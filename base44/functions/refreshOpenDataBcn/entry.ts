@@ -195,7 +195,7 @@ export default async function (req: any) {
         m.set(r.category_key, cur);
       }
 
-      results.push({ dataset_code: cfg.code, status: 'success', records_written: recs.length, error: null, resource_last_modified, finished_at: new Date().toISOString() });
+      results.push({ dataset_code: cfg.code, status: 'success', records_written: recs.length, error: null, resource_last_modified: resourceLastModified, finished_at: new Date().toISOString() });
       await upsertStatus(db, cfg.code, 'success', recs.length, null, startedAt, resourceLastModified);
     } catch (e: any) {
       results.push({ dataset_code: cfg.code, status: 'error', records_written: 0, error: e.message, resource_last_modified: resourceLastModified, finished_at: new Date().toISOString() });

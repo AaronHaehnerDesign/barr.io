@@ -42,7 +42,9 @@ export default function Admin() {
     queryKey: ["dataSyncStatus"],
     queryFn: async () => {
       const { items } = await base44.entities.DataSyncStatus.filter({}, { sort: "-finished_at", limit: 50 });
-      return items;
+      // Newest first; dedupe by dataset_code keeping the most recent.
+      const seen = new Set();
+      return items.filter((s) => (seen.has(s.dataset_code) ? false : seen.add(s.dataset_code)));
     },
     refetchInterval: busy ? 4000 : false
   });
