@@ -77,8 +77,9 @@ export default function MapView() {
       <div className="rounded-xl border overflow-hidden h-[70vh]">
         <MapContainer center={[41.395, 2.16]} zoom={12} className="h-full w-full" scrollWheelZoom>
           <TileLayer
-            url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
-            attribution='&copy; OpenStreetMap &copy; CARTO'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution='&copy; OpenStreetMap contributors'
+            maxZoom={19}
           />
           {(!loading && level === "district" && (districts.data || []).map((d) => {
             const v = value10(d);

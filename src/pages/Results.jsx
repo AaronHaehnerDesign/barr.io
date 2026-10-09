@@ -4,6 +4,7 @@ import { useProfile } from "@/lib/useProfile";
 import { useDistricts, useBarris } from "@/lib/useAreas";
 import { matchScore, topReasons, scoreColor } from "@/lib/scoring";
 import { CATEGORIES, CATEGORY_MAP, PERSONA_FLIPS } from "@/lib/categories";
+import { audienceConfig } from "@/lib/audience";
 import ScoreBadge from "@/components/ScoreBadge";
 import CategoryIcon from "@/components/CategoryIcon";
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,7 @@ export default function Results() {
   }, [profile]);
 
   const flip = (profile?.persona && PERSONA_FLIPS[profile.persona]) || {};
+  const ac = audienceConfig(profile);
 
   function score(area, key) {
     let s = area.category_scores?.[key];
@@ -57,7 +59,7 @@ export default function Results() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-6">
       <div className="flex items-center justify-between gap-2 mb-1">
-        <h1 className="text-lg font-semibold flex items-center gap-2"><ArrowDownUp className="h-5 w-5 text-primary" /> Your top matches</h1>
+        <h1 className="text-lg font-semibold flex items-center gap-2"><ArrowDownUp className="h-5 w-5 text-primary" /> {ac.resultsTitle}</h1>
         <div className="flex items-center gap-2">
           <Button asChild variant="ghost" size="sm" className="text-muted-foreground"><Link to="/priorities">Adjust priorities</Link></Button>
           <div className="inline-flex rounded-lg border p-0.5 bg-muted">
@@ -66,7 +68,7 @@ export default function Results() {
           </div>
         </div>
       </div>
-      <p className="text-sm text-muted-foreground mb-4">{level === "district" ? "10 districts" : "77 barris"} ranked by personal match · persona: {profile.persona}</p>
+      <p className="text-sm text-muted-foreground mb-4">{level === "district" ? "10 districts" : "77 barris"} {ac.resultsSubLabel} · {ac.label} · {profile.persona}</p>
 
       {loading ? <div className="py-10 text-center text-muted-foreground">Scoring…</div> : (
         <div className="space-y-3">

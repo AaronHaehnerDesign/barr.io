@@ -15,7 +15,7 @@ export default function Onboarding() {
   const [messages, setMessages] = useState(() => {
     const existing = profile?.messages;
     if (existing?.length) return existing;
-    return [{ role: "assistant", content: "Hi! I'm your BarrioMatch agent. Tell me about your situation — who's moving, your budget, whether you need a car, where you'll work, and what kind of neighbourhood feels like home. You can type or tap the mic to speak." }];
+    return [{ role: "assistant", content: "Hi! I'm your BarrioMatch agent. Tell me what you're looking for — a home for you and your household, or a location for your business. Describe your situation, budget, and what matters to you, and I'll guide you from there. You can type or tap the mic to speak." }];
   });
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -40,6 +40,7 @@ export default function Onboarding() {
         setDraft(data.profile);
         // persist draft as conversation + profile
         await saveProfile.mutateAsync({
+          audience: data.profile.audience || data.audience || "b2c",
           persona: data.profile.persona,
           priorities: data.profile.priorities || [],
           hard_filters: data.profile.hard_filters || [],
