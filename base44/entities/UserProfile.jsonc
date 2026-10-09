@@ -2,6 +2,15 @@
   "name": "UserProfile",
   "type": "object",
   "properties": {
+    "audience": {
+      "type": "string",
+      "enum": [
+        "b2c",
+        "b2b"
+      ],
+      "default": "b2c",
+      "description": "Whether this profile is for an individual/household (b2c) or a business location (b2b)."
+    },
     "persona": {
       "type": "string",
       "enum": [
