@@ -1,7 +1,8 @@
 import { Link, Outlet, useNavigate } from "react-router-dom";
 import { useProfile } from "@/lib/useProfile";
+import { useAuth } from "@/lib/AuthContext";
 import { base44 } from "@/api/base44Client";
-import { Map, ListOrdered, GitCompareArrows, User, Sparkles, LogOut, Home } from "lucide-react";
+import { Map, ListOrdered, GitCompareArrows, User, Sparkles, LogOut, Home, ShieldCheck } from "lucide-react";
 
 const NAV = [
   { to: "/results", label: "Results", icon: ListOrdered },
@@ -12,7 +13,9 @@ const NAV = [
 
 export default function AppLayout() {
   const { data: profile } = useProfile();
+  const { user } = useAuth();
   const navigate = useNavigate();
+  const isAdmin = user?.role === "admin";
 
   async function logout() {
     await base44.auth.logout();
@@ -36,6 +39,11 @@ export default function AppLayout() {
                 <n.icon className="h-4 w-4" /> {n.label}
               </Link>
             ))}
+            {isAdmin && (
+              <Link to="/admin" className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
+                <ShieldCheck className="h-4 w-4" /> Admin
+              </Link>
+            )}
           </nav>
 
           <div className="flex items-center gap-2">

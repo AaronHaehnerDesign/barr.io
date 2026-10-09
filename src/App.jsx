@@ -19,6 +19,7 @@ import MapView from '@/pages/MapView';
 import Compare from '@/pages/Compare';
 import AreaDetail from '@/pages/AreaDetail';
 import MyProfile from '@/pages/MyProfile';
+import Admin from '@/pages/Admin';
 import AppLayout from '@/components/AppLayout';
 
 const AuthenticatedApp = () => {
@@ -61,6 +62,7 @@ const AuthenticatedApp = () => {
           <Route path="/compare" element={<Compare />} />
           <Route path="/area/:type/:id" element={<AreaDetail />} />
           <Route path="/profile" element={<MyProfile />} />
+          <Route path="/admin" element={<Admin />} />
         </Route>
       </Route>
       <Route path="*" element={<PageNotFound />} />
