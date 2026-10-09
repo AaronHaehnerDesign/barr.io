@@ -20,7 +20,7 @@ export default function MapView() {
     (profile?.priorities || []).forEach((p) => (o[p.category_key] = p.weight));
     return o;
   }, [profile]);
-  const flip = profile?.persona ? PERSONA_FLIPS[profile.persona] : {};
+  const flip = (profile?.persona && PERSONA_FLIPS[profile.persona]) || {};
 
   function catScore(area, key) {
     let s = area.category_scores?.[key];
