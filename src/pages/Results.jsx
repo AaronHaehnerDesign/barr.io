@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useProfile } from "@/lib/useProfile";
 import { useDistricts, useBarris } from "@/lib/useAreas";
-import { matchScore, topReasons, scoreColor, categoryScoresFromArea } from "@/lib/scoring";
+import { matchScore, topReasons, scoreColor, categoryScoresFromArea, areaSummary } from "@/lib/scoring";
 import { CATEGORIES, CATEGORY_MAP, PERSONA_FLIPS } from "@/lib/categories";
 import { audienceConfig } from "@/lib/audience";
 import ScoreBadge from "@/components/ScoreBadge";
@@ -85,8 +85,9 @@ export default function Results() {
                       <h2 className="font-semibold truncate">{a.name}</h2>
                       {level === "barri" && <span className="text-xs text-muted-foreground">{a.district_name}</span>}
                     </div>
+                    <p className="mt-1 text-sm text-muted-foreground">{areaSummary(a._computedScores)}</p>
                     {i < 3 && reasons.length > 0 && (
-                      <p className="mt-1 text-sm text-muted-foreground">
+                      <p className="mt-1 text-xs text-muted-foreground">
                         Fits because {reasons.map((r) => `${r.name.toLowerCase()} (${r.score.toFixed(1)}/10, weight ${r.weight})`).join(", ")} align with your priorities.
                       </p>
                     )}
@@ -94,7 +95,7 @@ export default function Results() {
                       {(profile.priorities || []).slice(0, 5).sort((x, y) => x.rank - y.rank).map((p) => (
                         <span key={p.category_key} className="inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-[11px]">
                           <CategoryIcon categoryKey={p.category_key} className="h-3 w-3" />
-                          <ScoreBadge score={a._computedScores[p.category_key]} size="sm" />
+                          <ScoreBadge score={a._computedScores[p.category_key]} size="sm" caption={CATEGORY_MAP[p.category_key]?.name} />
                         </span>
                       ))}
                     </div>

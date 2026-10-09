@@ -90,6 +90,34 @@ export function topReasons(area, weights, topKeys) {
   return reasons.sort((a, b) => b.weight * b.score - a.weight * a.score).slice(0, 3);
 }
 
+// One-line explanation of what a 1-10 rating band means in context.
+export function scoreExplanation(score) {
+  if (score == null) return "";
+  if (score >= 8.5) return "Among the best in Barcelona for this category.";
+  if (score >= 7) return "Well above the city average.";
+  if (score >= 5.5) return "Above the city average.";
+  if (score >= 4) return "Around the city average.";
+  if (score >= 2.5) return "Below the city average.";
+  return "Among the weakest in Barcelona for this category.";
+}
+
+// Short text summary of an area's profile, derived from its computed 1-10
+// category scores: top strengths plus the weakest point.
+export function areaSummary(scores) {
+  const entries = Object.entries(scores || {})
+    .filter(([, s]) => s != null)
+    .map(([k, s]) => ({ key: k, name: CATEGORY_MAP[k]?.name || k, score: s }));
+  if (!entries.length) return "No scored data yet for this area.";
+  const sorted = entries.slice().sort((a, b) => b.score - a.score);
+  const top = sorted.slice(0, 2).filter((e) => e.score >= 7);
+  const weak = sorted[sorted.length - 1];
+  const parts = [];
+  if (top.length) parts.push(`Strongest in ${top.map((t) => `${t.name} (${t.score.toFixed(1)})`).join(" and ")}`);
+  if (weak && weak.score < 5) parts.push(`weakest in ${weak.name} (${weak.score.toFixed(1)})`);
+  if (!parts.length) parts.push(`Balanced across categories, peaking at ${sorted[0].name} (${sorted[0].score.toFixed(1)})`);
+  return parts.join("; ") + ".";
+}
+
 // data freshness: warn if older than 3 years from a ref date
 export function isStale(dateStr, ref = new Date("2026-10-09")) {
   if (!dateStr) return false;
