@@ -53,27 +53,17 @@ export default function Results() {
   if (!profile) {
     return <EmptyState />;
   }
-  if (!profile.confirmed) {
-    return (
-      <div className="mx-auto max-w-2xl px-4 py-16 text-center">
-        <Sparkles className="h-8 w-8 mx-auto text-primary mb-3" />
-        <h1 className="text-xl font-semibold">Confirm your priority profile</h1>
-        <p className="text-muted-foreground mt-2">Confirm what matters most to you so we can rank Barcelona for you.</p>
-        <div className="mt-5 flex gap-2 justify-center">
-          <Button asChild><Link to="/onboarding"><Sparkles className="h-4 w-4" /> Start onboarding</Link></Button>
-          <Button variant="outline" asChild><Link to="/priorities">Open priority board</Link></Button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6">
       <div className="flex items-center justify-between gap-2 mb-1">
         <h1 className="text-lg font-semibold flex items-center gap-2"><ArrowDownUp className="h-5 w-5 text-primary" /> Your top matches</h1>
-        <div className="inline-flex rounded-lg border p-0.5 bg-muted">
-          <button onClick={() => setLevel("district")} className={`px-3 py-1 text-xs rounded-md ${level === "district" ? "bg-background shadow-sm font-medium" : "text-muted-foreground"}`}><Layers className="inline h-3.5 w-3.5 mr-1" />Districts</button>
-          <button onClick={() => setLevel("barri")} className={`px-3 py-1 text-xs rounded-md ${level === "barri" ? "bg-background shadow-sm font-medium" : "text-muted-foreground"}`}>Barris</button>
+        <div className="flex items-center gap-2">
+          <Button asChild variant="ghost" size="sm" className="text-muted-foreground"><Link to="/priorities">Adjust priorities</Link></Button>
+          <div className="inline-flex rounded-lg border p-0.5 bg-muted">
+            <button onClick={() => setLevel("district")} className={`px-3 py-1 text-xs rounded-md ${level === "district" ? "bg-background shadow-sm font-medium" : "text-muted-foreground"}`}><Layers className="inline h-3.5 w-3.5 mr-1" />Districts</button>
+            <button onClick={() => setLevel("barri")} className={`px-3 py-1 text-xs rounded-md ${level === "barri" ? "bg-background shadow-sm font-medium" : "text-muted-foreground"}`}>Barris</button>
+          </div>
         </div>
       </div>
       <p className="text-sm text-muted-foreground mb-4">{level === "district" ? "10 districts" : "77 barris"} ranked by personal match · persona: {profile.persona}</p>

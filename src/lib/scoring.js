@@ -49,6 +49,28 @@ export function matchScore(categoryScores, weights) {
   return Math.round(((avg - 1) / 9) * 100); // 0-100
 }
 
+// Derive a 1-10 score per category from an area's indicators array.
+// Each indicator already carries a normalized_score (1-10, higher = better);
+// we average them within each category_key. Falls back to area.category_scores
+// for any category with no indicators (or when indicators is absent).
+export function categoryScoresFromArea(area) {
+  const out = {};
+  const byCat = {};
+  (area?.indicators || []).forEach((ind) => {
+    if (ind == null || ind.normalized_score == null || !ind.category_key) return;
+    (byCat[ind.category_key] ||= []).push(ind.normalized_score);
+  });
+  for (const key of Object.keys(byCat)) {
+    const arr = byCat[key];
+    out[key] = Math.round((arr.reduce((s, v) => s + v, 0) / arr.length) * 10) / 10;
+  }
+  const stored = area?.category_scores || {};
+  for (const key of Object.keys(stored)) {
+    if (out[key] == null && stored[key] != null) out[key] = stored[key];
+  }
+  return out;
+}
+
 export function rankAreas(areas, weights) {
   return areas
     .map(a => ({ ...a, match_score: matchScore(a.category_scores || {}, weights) }))

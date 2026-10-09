@@ -1,4 +1,4 @@
-import { Link, Outlet, useNavigate } from "react-router-dom";
+import { Link, NavLink, Outlet } from "react-router-dom";
 import { useProfile } from "@/lib/useProfile";
 import { base44 } from "@/api/base44Client";
 import { Map, ListOrdered, GitCompareArrows, User, Sparkles, LogOut, Home } from "lucide-react";
@@ -10,61 +10,90 @@ const NAV = [
   { to: "/profile", label: "My Profile", icon: User }
 ];
 
+const sideLinkClass = ({ isActive }) =>
+  `flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+    isActive ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+  }`;
+
 export default function AppLayout() {
   const { data: profile } = useProfile();
-  const navigate = useNavigate();
 
   async function logout() {
     await base44.auth.logout();
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <header className="sticky top-0 z-40 border-b bg-background/90 backdrop-blur">
-        <div className="mx-auto max-w-7xl px-4 h-14 flex items-center justify-between gap-4">
+    <div className="min-h-screen bg-background md:flex">
+      {/* Sidebar (desktop) */}
+      <aside className="hidden md:flex md:w-60 md:flex-col md:fixed md:inset-y-0 border-r bg-background">
+        <div className="flex items-center gap-2 h-14 px-4 border-b">
           <Link to="/results" className="flex items-center gap-2 font-semibold">
             <span className="grid h-7 w-7 place-items-center rounded-lg bg-primary text-primary-foreground">
               <Home className="h-4 w-4" />
             </span>
             <span className="tracking-tight">BarrioMatch</span>
-            <span className="ml-1 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800">sample data</span>
           </Link>
+          <span className="ml-auto rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800">sample</span>
+        </div>
 
-          <nav className="hidden md:flex items-center gap-1">
-            {NAV.map(n => (
-              <Link key={n.to} to={n.to} className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
-                <n.icon className="h-4 w-4" /> {n.label}
-              </Link>
-            ))}
-          </nav>
+        <nav className="flex-1 space-y-1 p-3">
+          {NAV.map((n) => (
+            <NavLink key={n.to} to={n.to} className={sideLinkClass}>
+              <n.icon className="h-4 w-4" /> {n.label}
+            </NavLink>
+          ))}
+        </nav>
 
-          <div className="flex items-center gap-2">
-            {profile?.persona ? (
-              <Link to="/onboarding" className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-muted">
-                <Sparkles className="h-4 w-4 text-primary" /> {profile.persona}
-              </Link>
-            ) : (
-              <Link to="/onboarding" className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground">
-                <Sparkles className="h-4 w-4" /> Start
-              </Link>
-            )}
-            <button onClick={logout} className="grid h-9 w-9 place-items-center rounded-md hover:bg-muted text-muted-foreground" title="Log out">
-              <LogOut className="h-4 w-4" />
-            </button>
-          </div>
+        <div className="border-t p-3 space-y-1">
+          <Link
+            to={profile?.persona ? "/profile" : "/onboarding"}
+            className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ${
+              profile?.persona ? "border text-foreground hover:bg-muted" : "bg-primary text-primary-foreground"
+            }`}
+          >
+            <Sparkles className="h-4 w-4" /> {profile?.persona || "Start onboarding"}
+          </Link>
+          <button
+            onClick={logout}
+            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            <LogOut className="h-4 w-4" /> Log out
+          </button>
+        </div>
+      </aside>
+
+      {/* Mobile top header */}
+      <header className="md:hidden sticky top-0 z-40 border-b bg-background/90 backdrop-blur">
+        <div className="flex items-center justify-between h-14 px-4">
+          <Link to="/results" className="flex items-center gap-2 font-semibold">
+            <span className="grid h-7 w-7 place-items-center rounded-lg bg-primary text-primary-foreground">
+              <Home className="h-4 w-4" />
+            </span>
+            <span className="tracking-tight">BarrioMatch</span>
+          </Link>
+          <button onClick={logout} className="grid h-9 w-9 place-items-center rounded-md hover:bg-muted text-muted-foreground" title="Log out">
+            <LogOut className="h-4 w-4" />
+          </button>
         </div>
       </header>
 
-      <main className="flex-1">
+      <main className="flex-1 md:ml-60 min-h-screen">
         <Outlet />
       </main>
 
+      {/* Mobile bottom nav */}
       <nav className="md:hidden sticky bottom-0 z-40 border-t bg-background">
         <div className="grid grid-cols-4">
-          {NAV.map(n => (
-            <Link key={n.to} to={n.to} className="flex flex-col items-center gap-0.5 py-2 text-[11px] text-muted-foreground hover:text-foreground">
+          {NAV.map((n) => (
+            <NavLink
+              key={n.to}
+              to={n.to}
+              className={({ isActive }) =>
+                `flex flex-col items-center gap-0.5 py-2 text-[11px] ${isActive ? "text-foreground" : "text-muted-foreground"}`
+              }
+            >
               <n.icon className="h-5 w-5" /> {n.label}
-            </Link>
+            </NavLink>
           ))}
         </div>
       </nav>

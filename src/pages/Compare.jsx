@@ -4,6 +4,7 @@ import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Responsi
 import { useDistricts, useBarris } from "@/lib/useAreas";
 import { useProfile } from "@/lib/useProfile";
 import { CATEGORIES, CATEGORY_MAP, INDICATORS } from "@/lib/categories";
+import { categoryScoresFromArea } from "@/lib/scoring";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
 import ScoreBadge from "@/components/ScoreBadge";
@@ -25,7 +26,7 @@ export default function Compare() {
 
   const radarData = useMemo(() => CATEGORIES.map(c => {
     const row = { category: c.name };
-    chosen.forEach(a => { row[a.name] = a.category_scores?.[c.key] ?? 0; });
+    chosen.forEach(a => { const cs = categoryScoresFromArea(a); row[a.name] = cs[c.key] ?? 0; });
     return row;
   }), [chosen]);
 

@@ -5,7 +5,7 @@ export function useDistricts() {
   return useQuery({
     queryKey: ["districts"],
     queryFn: async () => {
-      const { items } = await base44.entities.District.filter({}, { sort: "code", limit: 50, fields: ["name","code","population","centroid","category_scores","is_sample","geometry"] });
+      const { items } = await base44.entities.District.filter({}, { sort: "code", limit: 50, fields: ["name","code","population","centroid","category_scores","indicators","is_sample","geometry"] });
       return items;
     }
   });
@@ -18,7 +18,7 @@ export function useBarris() {
       const items = [];
       let cursor = undefined;
       do {
-        const page = await base44.entities.Barri.filter({}, { sort: "code", limit: 200, cursor, fields: ["name","code","district_code","district_name","population","centroid","category_scores","is_sample"] });
+        const page = await base44.entities.Barri.filter({}, { sort: "code", limit: 200, cursor, fields: ["name","code","district_code","district_name","population","centroid","category_scores","indicators","is_sample"] });
         items.push(...page.items);
         cursor = page.has_more ? page.next_cursor : undefined;
       } while (cursor);
