@@ -1,0 +1,71 @@
+{
+  "name": "Apartment",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string"
+    },
+    "listing_type": {
+      "type": "string",
+      "enum": [
+        "rent",
+        "buy"
+      ],
+      "description": "rent = monthly rental, buy = sale"
+    },
+    "price": {
+      "type": "number",
+      "description": "EUR. Monthly rent when listing_type=rent, total sale price when listing_type=buy"
+    },
+    "district_name": {
+      "type": "string"
+    },
+    "barri_name": {
+      "type": "string"
+    },
+    "rooms": {
+      "type": "number"
+    },
+    "bathrooms": {
+      "type": "number"
+    },
+    "size_sqm": {
+      "type": "number"
+    },
+    "floor": {
+      "type": "string"
+    },
+    "image_url": {
+      "type": "string"
+    },
+    "gallery": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "description": {
+      "type": "string"
+    },
+    "has_elevator": {
+      "type": "boolean"
+    },
+    "has_terrace": {
+      "type": "boolean"
+    },
+    "external": {
+      "type": "boolean",
+      "default": true,
+      "description": "placeholder/demo listing (no real provider connected yet)"
+    }
+  },
+  "required": [
+    "title",
+    "listing_type",
+    "price",
+    "district_name",
+    "rooms",
+    "size_sqm",
+    "image_url"
+  ]
+}

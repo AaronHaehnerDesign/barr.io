@@ -26,6 +26,7 @@ import SavedComparisons from '@/pages/SavedComparisons';
 import Glossary from '@/pages/Glossary';
 import DataSources from '@/pages/DataSources';
 import PersonaLibrary from '@/pages/PersonaLibrary';
+import Apartments from '@/pages/Apartments';
 import AppLayout from '@/components/AppLayout';
 import OnboardingGuard from '@/components/OnboardingGuard';
 
@@ -77,6 +78,7 @@ const AuthenticatedApp = () => {
             <Route path="/glossary" element={<Glossary />} />
             <Route path="/data-sources" element={<DataSources />} />
             <Route path="/persona-library" element={<PersonaLibrary />} />
+            <Route path="/apartments" element={<Apartments />} />
           </Route>
         </Route>
       </Route>

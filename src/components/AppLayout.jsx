@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { Link, NavLink, Outlet } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { Map, ListOrdered, GitCompareArrows, User, LogOut, Home, Building2, SlidersHorizontal, Bot, PanelRightClose, PanelRightOpen, X, BarChart3, Bookmark, BookOpen, Database, Users, LayoutDashboard } from "lucide-react";
+import { Map, ListOrdered, GitCompareArrows, User, LogOut, Home, Building2, SlidersHorizontal, Bot, PanelRightClose, PanelRightOpen, X, BarChart3, Bookmark, BookOpen, Database, Users, LayoutDashboard, KeyRound } from "lucide-react";
 import AgentSidebar from "@/components/AgentSidebar";
 import { useActiveAudience } from "@/lib/useActiveAudience";
 
 const MAIN_NAV = [
 { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
 { to: "/results", label: "Results", icon: ListOrdered },
+{ to: "/apartments", label: "Apartments", icon: KeyRound },
 { to: "/map", label: "Map", icon: Map },
 { to: "/compare", label: "Compare", icon: GitCompareArrows },
 { to: "/priorities", label: "Priorities", icon: SlidersHorizontal },
