@@ -90,3 +90,8 @@
     @apply bg-background text-foreground font-body;
   }
 }
+
+.hero-loop-track { animation: heroMarquee 10s linear infinite; }
+.hero-loop:hover .hero-loop-track, .hero-loop:focus-within .hero-loop-track { animation-play-state: paused; }
+@keyframes heroMarquee { from { transform: translateX(0); } to { transform: translateX(-100%); } }
+@media (prefers-reduced-motion: reduce) { .hero-loop-track { animation-play-state: paused; } }
