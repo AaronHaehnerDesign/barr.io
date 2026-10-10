@@ -87,23 +87,24 @@ export default function AgentSidebar({ className = "" }) {
             <div className="rounded-2xl bg-muted px-4 py-3"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
           </div>
         )}
-        {draft?.priorities?.length > 0 && (
-          <div className="rounded-xl border bg-card p-3">
-            <p className="mb-2 text-xs font-medium text-muted-foreground">Detected priorities</p>
-            <div className="flex flex-wrap gap-1.5">
-              {draft.priorities.slice().sort((a, b) => a.rank - b.rank).map((p) => {
-                const cat = cats.find((c) => c.key === p.category_key);
-                return cat ? (
-                  <span key={p.category_key} className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs">
-                    <CategoryIcon categoryKey={p.category_key} className="h-3 w-3" />
-                    {cat.name}
-                  </span>
-                ) : null;
-              })}
-            </div>
-          </div>
-        )}
       </div>
+
+      {draft?.priorities?.length > 0 && (
+        <div className="shrink-0 border-t bg-muted/40 p-3">
+          <p className="mb-2 text-xs font-medium text-muted-foreground">Detected priorities</p>
+          <div className="flex flex-wrap gap-1.5">
+            {draft.priorities.slice().sort((a, b) => a.rank - b.rank).map((p) => {
+              const cat = cats.find((c) => c.key === p.category_key);
+              return cat ? (
+                <span key={p.category_key} className="inline-flex items-center gap-1 rounded-full border bg-background px-2 py-0.5 text-xs">
+                  <CategoryIcon categoryKey={p.category_key} className="h-3 w-3" />
+                  {cat.name}
+                </span>
+              ) : null;
+            })}
+          </div>
+        </div>
+      )}
 
       <form onSubmit={(e) => { e.preventDefault(); send(); }} className="flex shrink-0 items-center gap-2 border-t p-3">
         <VoiceRecorder onTranscript={(t) => send(t)} disabled={loading} />

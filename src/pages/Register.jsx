@@ -4,14 +4,42 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { UserPlus, Mail, Lock, Loader2, Home, Building2 } from "lucide-react";
+import { UserPlus, Mail, Lock, Loader2, Home, Building2, ArrowRight, ArrowLeft } from "lucide-react";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import AuthLayout from "@/components/AuthLayout";
 import GoogleIcon from "@/components/GoogleIcon";
 import { toast } from "@/components/ui/use-toast";
 import { safeReturnTo } from "@/lib/authReturnTo";
 
+const LOGIN_LINK = (
+  <>
+    Already have an account?{" "}
+    <Link
+      to={"/login" + (safeReturnTo() !== "/" ? "?returnTo=" + encodeURIComponent(safeReturnTo()) : "")}
+      className="text-primary font-medium hover:underline"
+    >
+      Log in
+    </Link>
+  </>
+);
+
+function TypeCard({ active, onClick, icon: Icon, title, desc }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex flex-col items-start gap-2 rounded-xl border p-4 text-left transition-colors ${active ? "border-primary ring-1 ring-primary bg-primary/5" : "hover:bg-muted"}`}
+    >
+      <span className="grid h-9 w-9 place-items-center rounded-lg bg-muted"><Icon className="h-4 w-4" /></span>
+      <span className="text-sm font-semibold">{title}</span>
+      <span className="text-[11px] leading-relaxed text-muted-foreground">{desc}</span>
+    </button>
+  );
+}
+
 export default function Register() {
+  const [step, setStep] = useState("type"); // "type" | "details"
+  const [accountType, setAccountType] = useState("personal");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -19,7 +47,6 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const [showOtp, setShowOtp] = useState(false);
   const [otpCode, setOtpCode] = useState("");
-  const [accountType, setAccountType] = useState("personal");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -130,23 +157,55 @@ export default function Register() {
     );
   }
 
+  // Step 1 — choose the account type before anything else. It is fixed at sign-up.
+  if (step === "type") {
+    return (
+      <AuthLayout
+        icon={UserPlus}
+        title="Create your account"
+        subtitle="First, what are you signing up for?"
+        footer={LOGIN_LINK}
+      >
+        <div className="grid grid-cols-2 gap-3 mb-6">
+          <TypeCard
+            active={accountType === "personal"}
+            onClick={() => setAccountType("personal")}
+            icon={Home}
+            title="Personal"
+            desc="A home or neighbourhood for you and your household."
+          />
+          <TypeCard
+            active={accountType === "business"}
+            onClick={() => setAccountType("business")}
+            icon={Building2}
+            title="Business"
+            desc="A location for your business, with commercial & operations data."
+          />
+        </div>
+        <Button className="w-full h-12 font-medium" onClick={() => setStep("details")}>
+          Continue <ArrowRight className="w-4 h-4" />
+        </Button>
+      </AuthLayout>
+    );
+  }
+
+  // Step 2 — registration details, with the account type locked in.
   return (
     <AuthLayout
-      icon={UserPlus}
+      icon={accountType === "business" ? Building2 : Home}
       title="Create your account"
-      subtitle="Sign up to get started"
-      footer={
-        <>
-          Already have an account?{" "}
-          <Link
-            to={"/login" + (safeReturnTo() !== "/" ? "?returnTo=" + encodeURIComponent(safeReturnTo()) : "")}
-            className="text-primary font-medium hover:underline"
-          >
-            Log in
-          </Link>
-        </>
-      }
+      subtitle={accountType === "business" ? "Signing up for a Business account" : "Signing up for a Personal account"}
+      footer={LOGIN_LINK}
     >
+      <div className="mb-5 flex items-center justify-between rounded-lg border bg-muted/40 px-3 py-2">
+        <span className="text-xs text-muted-foreground">
+          Account type: <span className="font-medium text-foreground">{accountType === "business" ? "Business" : "Personal"}</span>
+        </span>
+        <button onClick={() => setStep("type")} className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+          <ArrowLeft className="h-3 w-3" /> Change
+        </button>
+      </div>
+
       <Button
         variant="outline"
         className="w-full h-12 text-sm font-medium mb-6"
@@ -162,30 +221,6 @@ export default function Register() {
         </div>
         <div className="relative flex justify-center text-xs uppercase">
           <span className="bg-card px-3 text-muted-foreground">or</span>
-        </div>
-      </div>
-
-      <div className="mb-6">
-        <Label className="mb-2 block">I'm signing up for</Label>
-        <div className="grid grid-cols-2 gap-3">
-          <button
-            type="button"
-            onClick={() => setAccountType("personal")}
-            className={`flex flex-col items-start gap-1 rounded-xl border p-3 text-left transition-colors ${accountType === "personal" ? "border-primary ring-1 ring-primary bg-primary/5" : "hover:bg-muted"}`}
-          >
-            <span className="grid h-8 w-8 place-items-center rounded-lg bg-muted"><Home className="h-4 w-4" /></span>
-            <span className="text-sm font-semibold">Personal</span>
-            <span className="text-[11px] text-muted-foreground leading-relaxed">A home or neighbourhood for you and your household.</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setAccountType("business")}
-            className={`flex flex-col items-start gap-1 rounded-xl border p-3 text-left transition-colors ${accountType === "business" ? "border-primary ring-1 ring-primary bg-primary/5" : "hover:bg-muted"}`}
-          >
-            <span className="grid h-8 w-8 place-items-center rounded-lg bg-muted"><Building2 className="h-4 w-4" /></span>
-            <span className="text-sm font-semibold">Business</span>
-            <span className="text-[11px] text-muted-foreground leading-relaxed">A location for your business, with commercial & operations data.</span>
-          </button>
         </div>
       </div>
 
