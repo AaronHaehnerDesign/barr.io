@@ -32,6 +32,7 @@ export default function PriorityBoard() {
   const [items, setItems] = useState(() => profile?.priorities || []);
   const [saved, setSaved] = useState(false);
   const [filters, setFilters] = useState([]);
+  const [customLabel, setCustomLabel] = useState("");
 
   if (isLoading) return <div className="p-8 text-center text-muted-foreground">Loading your profile…</div>;
   if (!profile) return <div className="p-8 text-center"><p className="text-muted-foreground mb-3">Start the onboarding chat first.</p><Button onClick={() => navigate("/onboarding")}><Sparkles className="h-4 w-4" /> Start onboarding</Button></div>;
@@ -57,6 +58,17 @@ export default function PriorityBoard() {
   function addFilter(s) {
     if (filterList.some((f) => f.type === s.type)) return;
     setFilters([...filterList, { label: s.label, type: s.type, value: s.value }]);
+  }
+  function addCustomFilter() {
+    const label = customLabel.trim();
+    if (!label) return;
+    const type = "custom_" + label.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+    if (filterList.some((f) => f.type === type || f.label.toLowerCase() === label.toLowerCase())) {
+      setCustomLabel("");
+      return;
+    }
+    setFilters([...filterList, { label, type, value: true }]);
+    setCustomLabel("");
   }
   function removeFilter(i) {
     setFilters(filterList.filter((_, idx) => idx !== i));
@@ -158,6 +170,19 @@ export default function PriorityBoard() {
             </div>
           </div>
         )}
+
+        <div className="mt-3">
+          <p className="text-xs font-medium text-muted-foreground mb-2">Add your own</p>
+          <form onSubmit={(e) => { e.preventDefault(); addCustomFilter(); }} className="flex gap-2">
+            <input
+              value={customLabel}
+              onChange={(e) => setCustomLabel(e.target.value)}
+              placeholder="e.g. Wheelchair accessible"
+              className="flex-1 rounded-full border bg-background px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring"
+            />
+            <Button type="submit" size="sm" disabled={!customLabel.trim()}>Add</Button>
+          </form>
+        </div>
       </div>
 
       <div className="mt-6 flex items-center gap-3">

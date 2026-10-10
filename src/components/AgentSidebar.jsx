@@ -12,8 +12,9 @@ import { Send, Sparkles, Loader2 } from "lucide-react";
 const WELCOME = { role: "assistant", content: "Hi! I'm your BarrioMatch agent. Tell me what you're looking for — a home for you and your household, or a location for your business. Describe your situation, budget, and what matters to you, and I'll guide you from there. You can type or tap the mic to speak." };
 
 // Self-contained agent chat designed to live in a right sidebar. When the agent
-// detects a ready profile it saves it immediately (confirmed:false) so any page
-// reading the profile — Results, Compare, Map — updates live as you chat.
+// detects a ready profile it saves it immediately (preserving the existing
+// confirmed flag) so any page reading the profile — Results, Compare, Map —
+// updates live as you chat without re-triggering onboarding.
 export default function AgentSidebar({ className = "" }) {
   const { audience } = useActiveAudience();
   const { data: profile } = useProfile();
@@ -56,7 +57,7 @@ export default function AgentSidebar({ className = "" }) {
           priorities: data.profile.priorities || [],
           hard_filters: data.profile.hard_filters || [],
           raw_input_text: data.profile.summary || content,
-          confirmed: false
+          confirmed: !!profile?.confirmed
         });
       }
     } catch (e) {
