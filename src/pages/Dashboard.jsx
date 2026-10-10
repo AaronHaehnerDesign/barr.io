@@ -86,7 +86,6 @@ export default function Dashboard() {
       <div className="grid gap-3 sm:grid-cols-3">
         {top3.map((a, i) => (
           <Link key={a.id} to={`/area/district/${a.id}`} className="group relative flex flex-col overflow-hidden rounded-2xl border bg-card p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-            <span className="absolute inset-x-0 top-0 h-1" style={{ backgroundColor: scoreColor((a.match_score / 10) + 1) }} />
             <div className="flex items-center justify-between">
               <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">TOP {i + 1}</span>
               <ChevronRight className="h-4 w-4 text-muted-foreground transition group-hover:translate-x-0.5" />
