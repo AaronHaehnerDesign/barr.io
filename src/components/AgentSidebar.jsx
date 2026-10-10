@@ -44,9 +44,10 @@ export default function AgentSidebar({ className = "" }) {
       // the server persisted the user msg + reply; refetch so history is authoritative
       await refetchConvo();
       setPending([]);
-      if (data.ready && data.profile) {
+      if (data.profile) {
         setDraft(data.profile);
-        // Save without navigating away — Results/Compare/Map recompute live.
+        // Save without navigating away — Results/Compare/Map/PriorityBoard recompute live.
+        // The agent always returns the full accumulated profile, so edits persist on every turn.
         await saveProfile.mutateAsync({
           audience: data.profile.audience || data.audience || "b2c",
           persona: data.profile.persona,

@@ -70,7 +70,7 @@ prices, healthcare, education, transport, car, safety, development, income, dail
 
 Output STRICT JSON:
 {
-  "reply": "what you say this turn (warm, brief, under ~60 words). If you still need info, ask the next 1-2 questions here.",
+  "reply": "what you say this turn (warm, brief, under ~60 words). If you still need info, ask the next 1-2 questions here. If the user changed a priority or filter this turn, start with a one-sentence confirmation of exactly what changed.",
   "ready": boolean,
   "audience": "b2c" | "b2b",
   "profile": {
@@ -84,7 +84,9 @@ Output STRICT JSON:
 
 Rules:
 - Always respond in the same language as the user (default English).
-- Only set ready=true once you know the audience, the persona, and at least 5 ranked priorities.
+- ALWAYS return the complete profile object on EVERY turn — not only when ready. It is the full accumulated state: merge the user's new input into the CURRENT ACCUMULATED PROFILE. Carry forward every prior priority and hard filter the user has not contradicted; only drop or change one when the user explicitly asks.
+- The user can EDIT their priorities at any time. Handle these requests: "add X" (insert the category with a sensible default weight), "remove/drop X" (delete it), "make X less/more important", "lower X", "raise X", "X matters more/less" (adjust the weight up or down in steps of ~15), and explicit reordering ("X above Y"). After ANY edit, re-assign rank 1..N by descending weight.
+- Only set ready=true once you know the audience, the persona, and at least 5 ranked priorities. Edits can happen before or after ready.
 - Hard filters are optional; only include ones the user explicitly cares about. value:false = must NOT.
 - Persona nudges weighting: Investor → prices/development/tourism; Remote worker → transport/dailylife; Retiree → environment/safety/healthcare; Family → education/families/safety; Business founder → dailylife/transport/tourism/prices.`;
 
@@ -115,7 +117,7 @@ Rules:
             }
           }
         },
-        required: ["reply", "ready", "audience"]
+        required: ["reply", "ready", "audience", "profile"]
       }
     });
 
@@ -130,13 +132,13 @@ Rules:
       conversation = await base44.entities.AgentConversation.update(conversation.id, {
         messages: newMessages,
         status: result?.ready ? "profile_ready" : (conversation.status || "ongoing"),
-        draft_profile: result?.ready && result?.profile ? result.profile : (conversation.draft_profile || null),
+        draft_profile: result?.profile ? result.profile : (conversation.draft_profile || null),
       });
     } else {
       conversation = await base44.entities.AgentConversation.create({
         messages: newMessages,
         status: result?.ready ? "profile_ready" : "ongoing",
-        draft_profile: result?.ready && result?.profile ? result.profile : null,
+        draft_profile: result?.profile ? result.profile : null,
       });
     }
 
