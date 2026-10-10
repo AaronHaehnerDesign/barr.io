@@ -49,6 +49,50 @@ export function matchScore(categoryScores, weights) {
   return Math.round(((avg - 1) / 9) * 100); // 0-100
 }
 
+// --- Workplace proximity ---
+// Distance (km) between a {lat,lon} point and an area centroid via haversine.
+export function haversineKm(a, b) {
+  if (!a || !b || a.lat == null || b.lat == null) return null;
+  const R = 6371;
+  const toRad = (d) => (d * Math.PI) / 180;
+  const dLat = toRad(b.lat - a.lat);
+  const dLon = toRad(b.lon - a.lon);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
+// Commute proximity as a 1-10 score (10 within 0.8 km, decaying to 1 at 8 km).
+export function commuteScore(area, workplace) {
+  if (!workplace || !area?.centroid) return null;
+  const d = haversineKm(area.centroid, workplace);
+  if (d == null) return null;
+  if (d <= 0.8) return 10;
+  if (d >= 8) return 1;
+  return Math.round((10 - ((d - 0.8) / (8 - 0.8)) * 9) * 10) / 10;
+}
+
+export function commuteDistanceLabel(area, workplace) {
+  if (!workplace || !area?.centroid) return null;
+  const d = haversineKm(area.centroid, workplace);
+  if (d == null) return null;
+  return d < 1 ? `${Math.round(d * 1000)} m` : `${d.toFixed(1)} km`;
+}
+
+// Match score with an optional workplace-proximity boost. When a workplace is
+// set and the user has priorities, "commute" joins the weighted average as an
+// extra category weighted at the average priority weight. Without priorities
+// the score stays 0 (onboarding still required).
+export function matchScoreWithCommute(categoryScores, weights, area, workplace) {
+  const base = matchScore(categoryScores, weights);
+  if (!workplace || !area?.centroid) return base;
+  const wvals = Object.values(weights || {}).filter((w) => w > 0);
+  if (!wvals.length) return base;
+  const commute = commuteScore(area, workplace);
+  if (commute == null) return base;
+  const cw = wvals.reduce((s, w) => s + w, 0) / wvals.length;
+  return matchScore({ ...categoryScores, commute }, { ...weights, commute: cw });
+}
+
 // Derive a 1-10 score per category from an area's indicators array.
 // Each indicator already carries a normalized_score (1-10, higher = better);
 // we average them within each category_key. Falls back to area.category_scores

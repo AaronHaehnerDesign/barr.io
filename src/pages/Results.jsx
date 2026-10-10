@@ -1,25 +1,28 @@
 import { useState, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useProfile } from "@/lib/useProfile";
 import { useDistricts, useBarris } from "@/lib/useAreas";
-import { matchScore, scoreColor, categoryScoresFromArea, areaSummary } from "@/lib/scoring";
-import { CATEGORIES, CATEGORY_MAP, PERSONA_FLIPS, categoriesForMode } from "@/lib/categories";
+import { matchScoreWithCommute, scoreColor, categoryScoresFromArea, areaSummary, commuteDistanceLabel } from "@/lib/scoring";
+import { CATEGORY_MAP, PERSONA_FLIPS, categoriesForMode } from "@/lib/categories";
 import { audienceConfig } from "@/lib/audience";
+import { useWorkplace } from "@/lib/useWorkplace";
 import ScoreBadge from "@/components/ScoreBadge";
 import CategoryIcon from "@/components/CategoryIcon";
+import BcnMap from "@/components/BcnMap";
 import { Button } from "@/components/ui/button";
-import { Sparkles, ArrowDownUp, MapPin, ChevronRight, Layers } from "lucide-react";
+import { Sparkles, ArrowDownUp, ChevronRight, Layers, MapPinned } from "lucide-react";
 
 export default function Results() {
+  const navigate = useNavigate();
   const { data: profile } = useProfile();
   const districts = useDistricts();
   const barris = useBarris();
   const [level, setLevel] = useState("district");
+  const { workplace, setWorkplace } = useWorkplace(profile?.audience || "b2c");
 
   const weights = useMemo(() => {
     const obj = {};
     (profile?.priorities || []).forEach((p) => (obj[p.category_key] = p.weight));
-    // apply persona flips: invert priority direction by adjusting nothing here (scores stay); flips affect display only
     return obj;
   }, [profile]);
 
@@ -38,7 +41,7 @@ export default function Results() {
           if (flip[c.key] === "negative") s = 11 - s;
           cs[c.key] = Math.max(1, Math.min(10, Math.round(s * 10) / 10));
         });
-        const ms = matchScore(cs, weights);
+        const ms = matchScoreWithCommute(cs, weights, a, workplace);
         return { ...a, _type: type, _computedScores: cs, match_score: ms };
       })
       .sort((a, b) => b.match_score - a.match_score);
@@ -48,14 +51,29 @@ export default function Results() {
   const ranked = useMemo(() => {
     if (level === "district") return rank(districts.data || [], "district");
     return rank(barris.data || [], "barri");
-  }, [level, districts.data, barris.data, weights]);
+  }, [level, districts.data, barris.data, weights, workplace, flip]);
+
+  // GeoJSON for the results map: every area colored by its (commute-boosted)
+  // match score, so the map mirrors the ranked list beside it.
+  const geojson = useMemo(() => {
+    const features = (ranked || [])
+      .filter((a) => a.geometry && a.geometry.coordinates)
+      .map((a) => {
+        const v = (a.match_score / 10) + 1;
+        let label = `${a.name} · ${a.match_score}% match`;
+        const dist = commuteDistanceLabel(a, workplace);
+        if (dist) label += ` · ${dist} to workplace`;
+        return { type: "Feature", geometry: a.geometry, properties: { id: a.id, name: a.name, match: a.match_score, color: scoreColor(v), label } };
+      });
+    return { type: "FeatureCollection", features };
+  }, [ranked, workplace]);
 
   if (!profile) {
     return <EmptyState />;
   }
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-6">
+    <div className="mx-auto max-w-6xl px-4 py-6">
       <div className="flex items-center justify-between gap-2 mb-1">
         <h1 className="text-lg font-semibold flex items-center gap-2"><ArrowDownUp className="h-5 w-5 text-primary" /> {ac.resultsTitle}</h1>
         <div className="flex items-center gap-2">
@@ -66,39 +84,55 @@ export default function Results() {
           </div>
         </div>
       </div>
-      <p className="text-sm text-muted-foreground mb-4">Neighbourhoods ranked by how well they match your priorities — the higher the score, the better the fit for what matters to you.</p>
+      <p className="text-sm text-muted-foreground mb-4">
+        Neighbourhoods ranked by how well they match your priorities.
+        {workplace && profile?.priorities?.length && <span className="inline-flex items-center gap-1 text-emerald-700"> <MapPinned className="h-3.5 w-3.5" /> Ranking includes commute distance to your workplace pin.</span>}
+      </p>
 
       {loading ? <div className="py-10 text-center text-muted-foreground">Scoring…</div> : (
-        <div className="space-y-3">
-          {ranked.slice(0, 20).map((a, i) => {
-            return (
-              <div key={a.id} className={`rounded-xl border bg-card p-4 shadow-sm ${i < 3 ? "ring-1 ring-emerald-200" : ""}`}>
-                <div className="flex items-start gap-3">
-                  <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl text-white" style={{ backgroundColor: scoreColor((a.match_score / 10) + 1) }}>
-                    <span className="text-lg font-bold leading-none">{a.match_score}</span>
-                    <span className="text-[9px] opacity-90">%</span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      {i < 3 && <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">TOP {i + 1}</span>}
-                      <h2 className="font-semibold truncate">{a.name}</h2>
-                      {level === "barri" && <span className="text-xs text-muted-foreground">{a.district_name}</span>}
+        <div className="grid lg:grid-cols-2 gap-4">
+          <div className="space-y-3">
+            {ranked.slice(0, 20).map((a, i) => {
+              const dist = commuteDistanceLabel(a, workplace);
+              return (
+                <div key={a.id} className={`rounded-xl border bg-card p-4 shadow-sm ${i < 3 ? "ring-1 ring-emerald-200" : ""}`}>
+                  <div className="flex items-start gap-3">
+                    <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl text-white" style={{ backgroundColor: scoreColor((a.match_score / 10) + 1) }}>
+                      <span className="text-lg font-bold leading-none">{a.match_score}</span>
+                      <span className="text-[9px] opacity-90">%</span>
                     </div>
-                    <p className="mt-1 text-sm text-muted-foreground">{areaSummary(a._computedScores)}</p>
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      {(profile.priorities || []).slice(0, 5).sort((x, y) => x.rank - y.rank).map((p) => (
-                        <span key={p.category_key} className="inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-[11px]">
-                          <CategoryIcon categoryKey={p.category_key} className="h-3 w-3" />
-                          <ScoreBadge score={a._computedScores[p.category_key]} size="sm" caption={CATEGORY_MAP[p.category_key]?.name} />
-                        </span>
-                      ))}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        {i < 3 && <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">TOP {i + 1}</span>}
+                        <h2 className="font-semibold truncate">{a.name}</h2>
+                        {level === "barri" && <span className="text-xs text-muted-foreground">{a.district_name}</span>}
+                        {dist && <span className="ml-auto inline-flex items-center gap-1 text-[11px] text-muted-foreground"><MapPinned className="h-3 w-3" />{dist}</span>}
+                      </div>
+                      <p className="mt-1 text-sm text-muted-foreground">{areaSummary(a._computedScores)}</p>
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {(profile.priorities || []).slice(0, 5).sort((x, y) => x.rank - y.rank).map((p) => (
+                          <span key={p.category_key} className="inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-[11px]">
+                            <CategoryIcon categoryKey={p.category_key} className="h-3 w-3" />
+                            <ScoreBadge score={a._computedScores[p.category_key]} size="sm" caption={CATEGORY_MAP[p.category_key]?.name} />
+                          </span>
+                        ))}
+                      </div>
                     </div>
+                    <Link to={`/area/${a._type}/${a.id}`} className="self-center text-muted-foreground hover:text-foreground"><ChevronRight className="h-5 w-5" /></Link>
                   </div>
-                  <Link to={`/area/${a._type}/${a.id}`} className="self-center text-muted-foreground hover:text-foreground"><ChevronRight className="h-5 w-5" /></Link>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
+
+          <div className="lg:sticky lg:top-4 self-start h-[55vh] lg:h-[calc(100vh-2rem)] rounded-xl border overflow-hidden">
+            <BcnMap
+              geojson={geojson}
+              workplace={workplace}
+              onWorkplaceChange={setWorkplace}
+              onAreaClick={(id) => navigate(`/area/${level}/${id}`)}
+            />
+          </div>
         </div>
       )}
     </div>

@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { Briefcase, X } from "lucide-react";
-import { scoreColor } from "@/lib/scoring";
 
 // Open-source WebGL map. Base style "positron" comes from OpenFreeMap (built on
 // OpenStreetMap). Free, no API key.
@@ -32,20 +31,19 @@ function fitToData(map, gj) {
   if (bb) map.fitBounds(bb, { padding: 30, animate: false });
 }
 
-export default function BcnMap({ geojson, pins, audience, onAreaClick }) {
+export default function BcnMap({ geojson, onAreaClick, workplace, onWorkplaceChange }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const sourceRef = useRef(null);
-  const pinMarkersRef = useRef([]);
   const workplaceMarkerRef = useRef(null);
   const popupRef = useRef(null);
   const placingRef = useRef(false);
   const onAreaClickRef = useRef(onAreaClick);
   onAreaClickRef.current = onAreaClick;
+  const onWorkplaceChangeRef = useRef(onWorkplaceChange);
+  onWorkplaceChangeRef.current = onWorkplaceChange;
 
   const [placing, setPlacing] = useState(false);
-  const [workplace, setWorkplace] = useState(null); // { lon, lat }
-  const storageKey = `barriomatch:workplace:${audience || "b2c"}`;
 
   useEffect(() => { placingRef.current = placing; }, [placing]);
   useEffect(() => {
@@ -53,14 +51,6 @@ export default function BcnMap({ geojson, pins, audience, onAreaClick }) {
     if (!map) return;
     map.getCanvas().style.cursor = placing ? "crosshair" : "";
   }, [placing]);
-
-  // Load saved workplace for this audience.
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(storageKey);
-      if (raw) setWorkplace(JSON.parse(raw));
-    } catch { /* ignore */ }
-  }, [storageKey]);
 
   // Init map once.
   useEffect(() => {
@@ -107,9 +97,7 @@ export default function BcnMap({ geojson, pins, audience, onAreaClick }) {
     // Workplace placement: a click on the base map (drops the pin).
     map.on("click", (e) => {
       if (!placingRef.current) return;
-      const pos = { lon: e.lngLat.lng, lat: e.lngLat.lat };
-      setWorkplace(pos);
-      localStorage.setItem(storageKey, JSON.stringify(pos));
+      onWorkplaceChangeRef.current?.({ lon: e.lngLat.lng, lat: e.lngLat.lat });
       setPlacing(false);
     });
 
@@ -124,28 +112,7 @@ export default function BcnMap({ geojson, pins, audience, onAreaClick }) {
     fitToData(map, geojson);
   }, [geojson]);
 
-  // Numbered rank pins — top areas, HTML markers positioned by MapLibre.
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map) return;
-    pinMarkersRef.current.forEach((m) => m.remove());
-    pinMarkersRef.current = [];
-    pins.forEach((p) => {
-      if (p.lon == null || p.lat == null) return;
-      const el = document.createElement("div");
-      const bg = scoreColor((p.match / 10) + 1);
-      el.style.cssText = `width:30px;height:30px;border-radius:50% 50% 50% 0;transform:rotate(-45deg) translateY(-4px);background:${bg};border:2px solid #fff;box-shadow:0 2px 5px rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;cursor:pointer;`;
-      const num = document.createElement("span");
-      num.textContent = p.rank;
-      num.style.cssText = "transform:rotate(45deg);font-weight:700;color:#fff;font-size:13px;line-height:1;";
-      el.appendChild(num);
-      el.title = `${p.rank}. ${p.name} · ${p.match}%`;
-      el.addEventListener("click", (ev) => { ev.stopPropagation(); onAreaClickRef.current?.(p.id); });
-      pinMarkersRef.current.push(new maplibregl.Marker(el).setLngLat([p.lon, p.lat]).addTo(map));
-    });
-  }, [pins]);
-
-  // Workplace pin — draggable HTML marker, persisted per audience.
+  // Workplace pin — draggable HTML marker. Position is owned by the parent.
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -157,17 +124,10 @@ export default function BcnMap({ geojson, pins, audience, onAreaClick }) {
     const marker = new maplibregl.Marker(el, { draggable: true }).setLngLat([workplace.lon, workplace.lat]).addTo(map);
     marker.on("dragend", () => {
       const ll = marker.getLngLat();
-      const pos = { lon: ll.lng, lat: ll.lat };
-      setWorkplace(pos);
-      localStorage.setItem(storageKey, JSON.stringify(pos));
+      onWorkplaceChangeRef.current?.({ lon: ll.lng, lat: ll.lat });
     });
     workplaceMarkerRef.current = marker;
-  }, [workplace, storageKey]);
-
-  function clearWorkplace() {
-    setWorkplace(null);
-    localStorage.removeItem(storageKey);
-  }
+  }, [workplace]);
 
   return (
     <div className="relative h-full w-full">
@@ -176,7 +136,7 @@ export default function BcnMap({ geojson, pins, audience, onAreaClick }) {
         {workplace ? (
           <div className="flex items-center gap-1 rounded-full border bg-background/95 px-2.5 py-1 text-xs shadow">
             <Briefcase className="h-3.5 w-3.5 text-slate-700" /> Workplace
-            <button onClick={clearWorkplace} className="ml-1 text-muted-foreground hover:text-foreground" aria-label="Clear workplace">
+            <button onClick={() => onWorkplaceChange?.(null)} className="ml-1 text-muted-foreground hover:text-foreground" aria-label="Clear workplace">
               <X className="h-3.5 w-3.5" />
             </button>
           </div>

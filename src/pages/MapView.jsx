@@ -2,10 +2,11 @@ import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useProfile } from "@/lib/useProfile";
 import { useDistricts, useBarris } from "@/lib/useAreas";
-import { matchScore, scoreColor, categoryScoresFromArea } from "@/lib/scoring";
+import { scoreColor, categoryScoresFromArea, matchScoreWithCommute, commuteDistanceLabel } from "@/lib/scoring";
 import { PERSONA_FLIPS, categoriesForMode } from "@/lib/categories";
 import { audienceConfigByKey } from "@/lib/audience";
 import { useActiveAudience } from "@/lib/useActiveAudience";
+import { useWorkplace } from "@/lib/useWorkplace";
 import BcnMap from "@/components/BcnMap";
 
 const WELCOME_HINT = "(start onboarding to see matches)";
@@ -21,6 +22,7 @@ export default function MapView() {
   const { audience } = useActiveAudience();
   const ac = audienceConfigByKey(audience);
   const cats = categoriesForMode(audience);
+  const { workplace, setWorkplace } = useWorkplace(audience);
 
   const weights = useMemo(() => {
     const o = {};
@@ -38,10 +40,10 @@ export default function MapView() {
     if (flip[key] === "negative") s = 11 - s;
     return Math.max(1, Math.min(10, Math.round(s * 10) / 10));
   }
-  function matchOf(scores) {
+  function matchOf(area, scores) {
     const cs = {};
     cats.forEach((c) => (cs[c.key] = catScore(scores, c.key)));
-    return matchScore(cs, weights);
+    return matchScoreWithCommute(cs, weights, area, workplace);
   }
   function metricLabel(key) {
     const c = cats.find((x) => x.key === key);
@@ -50,26 +52,25 @@ export default function MapView() {
 
   // Build the GeoJSON the map renders: one feature per area, with a precomputed
   // fill color (1-10 scale) and a hover label. The fill layer reads ["get","color"].
-  // Numbered pins are the top-5 areas by match score, placed at their centroids.
-  const { geojson, pins } = useMemo(() => {
+  // The workplace proximity boost is already baked into the match score here.
+  const geojson = useMemo(() => {
     const features = [];
-    const rankable = [];
     areas.forEach((a) => {
       const scores = categoryScoresFromArea(a);
-      const ms = matchOf(scores);
+      const ms = matchOf(a, scores);
       const v = metric === "match" ? (ms / 10) + 1 : catScore(scores, metric);
       const matchLine = profile?.priorities?.length ? `${ms}% match` : WELCOME_HINT;
       let label = `${a.name} · ${matchLine}`;
-      if (metric !== "match" && v != null) label = `${a.name} · ${ms}% match · ${metricLabel(metric)}: ${v.toFixed(1)}/10`;
+      const dist = commuteDistanceLabel(a, workplace);
+      if (dist && profile?.priorities?.length) label += ` · ${dist} to workplace`;
+      if (metric !== "match" && v != null) label += ` · ${metricLabel(metric)}: ${v.toFixed(1)}/10`;
       const props = { id: a.id, name: a.name, match: ms, color: v == null ? "#cbd5e1" : scoreColor(v), label };
       if (a.geometry && a.geometry.coordinates) {
         features.push({ type: "Feature", geometry: a.geometry, properties: props });
       }
-      rankable.push({ id: a.id, rank: 0, lon: a.centroid?.lon, lat: a.centroid?.lat, name: a.name, match: ms });
     });
-    const top = rankable.sort((a, b) => b.match - a.match).slice(0, 5).map((p, i) => ({ ...p, rank: i + 1 }));
-    return { geojson: { type: "FeatureCollection", features }, pins: top };
-  }, [areas, metric, weights, flip, profile, audience]);
+    return { type: "FeatureCollection", features };
+  }, [areas, metric, weights, flip, profile, audience, workplace]);
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-4">
@@ -97,15 +98,16 @@ export default function MapView() {
       <div className="rounded-xl border overflow-hidden h-[70vh]">
         <BcnMap
           geojson={geojson}
-          pins={pins}
-          audience={audience}
+          workplace={workplace}
+          onWorkplaceChange={setWorkplace}
           onAreaClick={(id) => navigate(`/area/${level}/${id}`)}
         />
       </div>
-      {loading && <p className="text-center text-sm text-muted-foreground mt-3">Loading map data…</p>}
-      {!profile?.priorities?.length && !loading && (
-        <p className="text-center text-xs text-muted-foreground mt-2">Complete the onboarding chat to see personalised match percentages.</p>
-      )}
+      <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+        {workplace && profile?.priorities?.length && <span className="inline-flex items-center gap-1 text-emerald-700">Ranking includes commute distance to your workplace pin.</span>}
+        {!profile?.priorities?.length && !loading && <span>Complete the onboarding chat to see personalised match percentages.</span>}
+        {loading && <span>Loading map data…</span>}
+      </div>
     </div>
   );
 }
