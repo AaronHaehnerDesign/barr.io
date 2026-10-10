@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useDistricts, useBarris } from "@/lib/useAreas";
-import { CATEGORIES, CATEGORY_MAP, PERSONA_FLIPS, categoriesForMode } from "@/lib/categories";
+import { CATEGORY_MAP, PERSONA_FLIPS, categoriesForMode } from "@/lib/categories";
 import { PERSONA_LIBRARY, personaWeights } from "@/lib/personas";
 import { categoryScoresFromArea, matchScore, areaSummary, scoreColor } from "@/lib/scoring";
 import ScoreBadge from "@/components/ScoreBadge";
@@ -29,7 +29,7 @@ function rankFor(persona, areas, type) {
     .sort((a, b) => b.match_score - a.match_score);
 }
 
-export default function PersonaLibrary() {
+export default function PersonaBrowser() {
   const districts = useDistricts();
   const barris = useBarris();
   const { audience } = useActiveAudience();
@@ -52,17 +52,13 @@ export default function PersonaLibrary() {
   const loading = level === "district" ? districts.isLoading : barris.isLoading;
 
   if (!selected) {
-    return <div className="mx-auto max-w-3xl px-4 py-16 text-center text-muted-foreground">Loading personas…</div>;
+    return <div className="py-10 text-center text-muted-foreground">Loading personas…</div>;
   }
 
   const topPriorities = [...selected.priorities].sort((a, b) => b.weight - a.weight).slice(0, 5);
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-6">
-      <div className="flex items-center gap-2 mb-1">
-        <Users className="h-5 w-5 text-primary" />
-        <h1 className="text-lg font-semibold">Persona Library</h1>
-      </div>
+    <>
       <p className="text-sm text-muted-foreground mb-4">Browse pre-configured profiles and see how the app ranks Barcelona's neighbourhoods for each.</p>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 mb-5">
@@ -136,6 +132,6 @@ export default function PersonaLibrary() {
           ))}
         </div>
       )}
-    </div>
+    </>
   );
 }

@@ -15,7 +15,7 @@ import Landing from '@/pages/Landing';
 import Dashboard from '@/pages/Dashboard';
 import BusinessDashboard from '@/pages/BusinessDashboard';
 import Onboarding from '@/pages/Onboarding';
-import PriorityBoard from '@/pages/PriorityBoard';
+import MyPersona from '@/pages/MyPersona';
 import Results from '@/pages/Results';
 import MapView from '@/pages/MapView';
 import Compare from '@/pages/Compare';
@@ -25,7 +25,6 @@ import DataInsights from '@/pages/DataInsights';
 import SavedComparisons from '@/pages/SavedComparisons';
 import Glossary from '@/pages/Glossary';
 import DataSources from '@/pages/DataSources';
-import PersonaLibrary from '@/pages/PersonaLibrary';
 import Apartments from '@/pages/Apartments';
 import AppLayout from '@/components/AppLayout';
 import OnboardingGuard from '@/components/OnboardingGuard';
@@ -68,7 +67,8 @@ const AuthenticatedApp = () => {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/business-dashboard" element={<BusinessDashboard />} />
             <Route path="/results" element={<Results />} />
-            <Route path="/priorities" element={<PriorityBoard />} />
+            <Route path="/priorities" element={<Navigate to="/my-persona" replace />} />
+            <Route path="/my-persona" element={<MyPersona />} />
             <Route path="/map" element={<MapView />} />
             <Route path="/compare" element={<Compare />} />
             <Route path="/area/:type/:id" element={<AreaDetail />} />
@@ -77,7 +77,7 @@ const AuthenticatedApp = () => {
             <Route path="/saved-comparisons" element={<SavedComparisons />} />
             <Route path="/glossary" element={<Glossary />} />
             <Route path="/data-sources" element={<DataSources />} />
-            <Route path="/persona-library" element={<PersonaLibrary />} />
+            <Route path="/persona-library" element={<Navigate to="/my-persona?tab=library" replace />} />
             <Route path="/apartments" element={<Apartments />} />
           </Route>
         </Route>

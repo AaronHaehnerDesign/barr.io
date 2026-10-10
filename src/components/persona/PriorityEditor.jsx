@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useProfile, useSaveProfile } from "@/lib/useProfile";
-import { CATEGORIES, CATEGORY_MAP, categoriesForMode } from "@/lib/categories";
+import { CATEGORY_MAP, categoriesForMode } from "@/lib/categories";
 import CategoryIcon from "@/components/CategoryIcon";
 import { Button } from "@/components/ui/button";
 import { X, Check, Sparkles, Shield } from "lucide-react";
@@ -25,7 +25,7 @@ function ranked(arr) {
     .map((p, i) => ({ ...p, rank: i + 1 }));
 }
 
-export default function PriorityBoard() {
+export default function PriorityEditor() {
   const navigate = useNavigate();
   const { data: profile, isLoading } = useProfile();
   const saveProfile = useSaveProfile();
@@ -34,8 +34,8 @@ export default function PriorityBoard() {
   const [filters, setFilters] = useState([]);
   const [customLabel, setCustomLabel] = useState("");
 
-  if (isLoading) return <div className="p-8 text-center text-muted-foreground">Loading your profile…</div>;
-  if (!profile) return <div className="p-8 text-center"><p className="text-muted-foreground mb-3">Start the onboarding chat first.</p><Button onClick={() => navigate("/onboarding")}><Sparkles className="h-4 w-4" /> Start onboarding</Button></div>;
+  if (isLoading) return <div className="py-10 text-center text-muted-foreground">Loading your profile…</div>;
+  if (!profile) return <div className="py-10 text-center"><p className="text-muted-foreground mb-3">Start the onboarding chat first.</p><Button onClick={() => navigate("/onboarding")}><Sparkles className="h-4 w-4" /> Start onboarding</Button></div>;
 
   const cats = categoriesForMode(profile.audience || "b2c");
   const list = items.length ? items : (profile.priorities || []);
@@ -97,12 +97,8 @@ export default function PriorityBoard() {
   const unused = cats.filter((c) => !usedKeys.includes(c.key));
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-6">
-      <div className="flex items-center gap-2 mb-1">
-        <Sparkles className="h-5 w-5 text-primary" />
-        <h1 className="text-lg font-semibold">Your priority board</h1>
-      </div>
-      <p className="text-sm text-muted-foreground mb-5">Set how much each category matters (0–100). Rows stay put while you edit — confirm to re-rank and save.</p>
+    <>
+      <p className="text-sm text-muted-foreground mb-4">Set how much each category matters (0–100). Rows stay put while you edit — confirm to re-rank and save.</p>
       {profile.persona && <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">Persona: {profile.persona}</div>}
 
       <div className="space-y-2">
@@ -193,6 +189,6 @@ export default function PriorityBoard() {
         <Button variant="ghost" onClick={() => navigate("/onboarding")}>Back to chat</Button>
         {ordered.length < 3 && <span className="text-xs text-muted-foreground">Pick at least 3 priorities.</span>}
       </div>
-    </div>
+    </>
   );
 }

@@ -11,13 +11,12 @@ const MAIN_NAV = [
 { to: "/apartments", label: "Apartments", icon: KeyRound },
 { to: "/map", label: "Map", icon: Map },
 { to: "/compare", label: "Compare", icon: GitCompareArrows },
-{ to: "/priorities", label: "Priorities", icon: SlidersHorizontal },
-{ to: "/data-insights", label: "Insights", icon: BarChart3 },
-{ to: "/saved-comparisons", label: "Saved", icon: Bookmark },
-{ to: "/persona-library", label: "Personas", icon: Users }];
+{ to: "/my-persona", label: "My Persona", icon: SlidersHorizontal },
+{ to: "/saved-comparisons", label: "Saved comparisons", icon: Bookmark }];
 
 
 const REFERENCE_NAV = [
+{ to: "/data-insights", label: "Insights", icon: BarChart3 },
 { to: "/glossary", label: "Glossary", icon: BookOpen },
 { to: "/data-sources", label: "Sources", icon: Database }];
 
@@ -29,7 +28,7 @@ const MOBILE_NAV = [
 { to: "/results", label: "Results", icon: ListOrdered },
 { to: "/map", label: "Map", icon: Map },
 { to: "/compare", label: "Compare", icon: GitCompareArrows },
-{ to: "/priorities", label: "Priorities", icon: SlidersHorizontal },
+{ to: "/my-persona", label: "Persona", icon: SlidersHorizontal },
 { to: "/profile", label: "Profile", icon: User }];
 
 
