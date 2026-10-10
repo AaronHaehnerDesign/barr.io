@@ -12,7 +12,7 @@ export function useApartments(filters) {
       if (listingType) q.listing_type = listingType;
       if (area && area !== "all") q.district_name = area;
       if (rooms && rooms !== "any") {
-        q.rooms = rooms === "4plus" ? { $gte: 4 } : Number(rooms);
+        q.rooms = rooms === "4plus" ? { $gte: 4 } : { $gte: Number(rooms) };
       }
       if (maxBudget) q.price = { $lte: Number(maxBudget) };
       const { items } = await base44.entities.Apartment.filter(q, { sort: "price", limit: 60 });

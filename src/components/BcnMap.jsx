@@ -1,13 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { Briefcase, X } from "lucide-react";
 
 // Open-source WebGL map. Base style "positron" comes from OpenFreeMap (built on
 // OpenStreetMap). Free, no API key.
 const STYLE_URL = "https://tiles.openfreemap.org/styles/positron";
 
-// Compute [lng,lat] bounds from a GeoJSON FeatureCollection (Polygon/MultiPolygon).
 function bboxOf(gj) {
   let minLon = 180, minLat = 90, maxLon = -180, maxLat = -90;
   const walk = (coords) => {
@@ -31,28 +29,20 @@ function fitToData(map, gj) {
   if (bb) map.fitBounds(bb, { padding: 30, animate: false });
 }
 
-export default function BcnMap({ geojson, onAreaClick, workplace, onWorkplaceChange }) {
+// MapLibre canvas with colored area polygons and workplace pins. Workplace pins
+// are profile-driven (set during onboarding), passed in as `workMarkers`
+// ([{label, lon, lat}]); the map does not manage them itself.
+export default function BcnMap({ geojson, onAreaClick, workMarkers = [] }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const sourceRef = useRef(null);
-  const workplaceMarkerRef = useRef(null);
+  const workMarkersRef = useRef([]);
   const popupRef = useRef(null);
-  const placingRef = useRef(false);
   const onAreaClickRef = useRef(onAreaClick);
   onAreaClickRef.current = onAreaClick;
-  const onWorkplaceChangeRef = useRef(onWorkplaceChange);
-  onWorkplaceChangeRef.current = onWorkplaceChange;
+  const workMarkersRef2 = useRef(workMarkers);
+  workMarkersRef2.current = workMarkers;
 
-  const [placing, setPlacing] = useState(false);
-
-  useEffect(() => { placingRef.current = placing; }, [placing]);
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map) return;
-    map.getCanvas().style.cursor = placing ? "crosshair" : "";
-  }, [placing]);
-
-  // Init map once.
   useEffect(() => {
     const map = new maplibregl.Map({
       container: containerRef.current,
@@ -72,18 +62,13 @@ export default function BcnMap({ geojson, onAreaClick, workplace, onWorkplaceCha
       const popup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 12 });
       popupRef.current = popup;
       const onMove = (e) => {
-        if (placingRef.current) return;
         const f = e.features?.[0];
         if (!f) return;
         map.getCanvas().style.cursor = "pointer";
         popup.setLngLat(e.lngLat).setHTML(f.properties.label).addTo(map);
       };
-      const onLeave = () => {
-        map.getCanvas().style.cursor = placingRef.current ? "crosshair" : "";
-        popup.remove();
-      };
+      const onLeave = () => { map.getCanvas().style.cursor = ""; popup.remove(); };
       const onClick = (e) => {
-        if (placingRef.current) return;
         const f = e.features?.[0];
         if (f && onAreaClickRef.current) onAreaClickRef.current(f.properties.id);
       };
@@ -94,17 +79,9 @@ export default function BcnMap({ geojson, onAreaClick, workplace, onWorkplaceCha
       fitToData(map, geojson);
     });
 
-    // Workplace placement: a click on the base map (drops the pin).
-    map.on("click", (e) => {
-      if (!placingRef.current) return;
-      onWorkplaceChangeRef.current?.({ lon: e.lngLat.lng, lat: e.lngLat.lat });
-      setPlacing(false);
-    });
-
     return () => { map.remove(); mapRef.current = null; };
-  }, []); // once
+  }, []);
 
-  // Re-sync the area source whenever the geojson (level / metric / data) changes.
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !sourceRef.current) return;
@@ -112,43 +89,25 @@ export default function BcnMap({ geojson, onAreaClick, workplace, onWorkplaceCha
     fitToData(map, geojson);
   }, [geojson]);
 
-  // Workplace pin — draggable HTML marker. Position is owned by the parent.
+  // Workplace pins (one per partner) — 💼 markers with a hover tooltip label.
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    if (workplaceMarkerRef.current) { workplaceMarkerRef.current.remove(); workplaceMarkerRef.current = null; }
-    if (!workplace) return;
-    const el = document.createElement("div");
-    el.style.cssText = "background:#1e293b;color:#fff;border-radius:50%;width:30px;height:30px;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.45);font-size:15px;";
-    el.textContent = "💼";
-    const marker = new maplibregl.Marker(el, { draggable: true }).setLngLat([workplace.lon, workplace.lat]).addTo(map);
-    marker.on("dragend", () => {
-      const ll = marker.getLngLat();
-      onWorkplaceChangeRef.current?.({ lon: ll.lng, lat: ll.lat });
+    workMarkersRef.current.forEach((m) => m.remove());
+    workMarkersRef.current = [];
+    (workMarkersRef2.current || []).forEach((w) => {
+      if (w.lon == null || w.lat == null) return;
+      const el = document.createElement("div");
+      el.style.cssText = "background:#1e293b;color:#fff;border-radius:50%;width:30px;height:30px;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.45);font-size:15px;";
+      el.textContent = "💼";
+      el.title = w.label || "Workplace";
+      workMarkersRef.current.push(new maplibregl.Marker(el).setLngLat([w.lon, w.lat]).addTo(map));
     });
-    workplaceMarkerRef.current = marker;
-  }, [workplace]);
+  }, [workMarkers]);
 
   return (
     <div className="relative h-full w-full">
       <div ref={containerRef} className="absolute inset-0" />
-      <div className="absolute top-2 right-2 z-10 flex items-center gap-2">
-        {workplace ? (
-          <div className="flex items-center gap-1 rounded-full border bg-background/95 px-2.5 py-1 text-xs shadow">
-            <Briefcase className="h-3.5 w-3.5 text-slate-700" /> Workplace
-            <button onClick={() => onWorkplaceChange?.(null)} className="ml-1 text-muted-foreground hover:text-foreground" aria-label="Clear workplace">
-              <X className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        ) : (
-          <button
-            onClick={() => setPlacing((p) => !p)}
-            className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium shadow ${placing ? "bg-primary text-primary-foreground" : "bg-background/95 hover:bg-muted"}`}
-          >
-            <Briefcase className="h-3.5 w-3.5" /> {placing ? "Click map to place" : "Set workplace"}
-          </button>
-        )}
-      </div>
     </div>
   );
 }

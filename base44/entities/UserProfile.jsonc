@@ -35,6 +35,29 @@
         "type": "object"
       }
     },
+    "work_locations": {
+      "type": "array",
+      "description": "Workplace(s) captured during onboarding: [{label, area_name}]. area_name matches a Barcelona district/barri name so the app can resolve coordinates and drop a map pin. Two entries when both partners work in an office.",
+      "items": {
+        "type": "object"
+      }
+    },
+    "budget_type": {
+      "type": "string",
+      "enum": [
+        "rent",
+        "buy"
+      ],
+      "description": "Whether the user is looking to rent or buy."
+    },
+    "budget_max": {
+      "type": "number",
+      "description": "Max monthly rent (EUR) when budget_type=rent, or max purchase price (EUR) when buy."
+    },
+    "rooms_needed": {
+      "type": "number",
+      "description": "Minimum number of bedrooms needed."
+    },
     "raw_input_text": {
       "type": "string"
     },

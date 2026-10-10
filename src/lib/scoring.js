@@ -78,19 +78,34 @@ export function commuteDistanceLabel(area, workplace) {
   return d < 1 ? `${Math.round(d * 1000)} m` : `${d.toFixed(1)} km`;
 }
 
-// Match score with an optional workplace-proximity boost. When a workplace is
-// set and the user has priorities, "commute" joins the weighted average as an
-// extra category weighted at the average priority weight. Without priorities
-// the score stays 0 (onboarding still required).
-export function matchScoreWithCommute(categoryScores, weights, area, workplace) {
+// Match score with an optional workplace-proximity boost. `workplaces` is an
+// array of {lat, lon} (one or two partners). The commute contribution is the
+// AVERAGE commute score across all workplaces, so a couple balances both
+// commutes. Without priorities the score stays 0 (onboarding still required).
+export function matchScoreWithCommute(categoryScores, weights, area, workplaces) {
   const base = matchScore(categoryScores, weights);
-  if (!workplace || !area?.centroid) return base;
+  const wps = (Array.isArray(workplaces) ? workplaces : (workplaces ? [workplaces] : [])).filter((p) => p && p.lat != null && p.lon != null);
+  if (!wps.length || !area?.centroid) return base;
   const wvals = Object.values(weights || {}).filter((w) => w > 0);
   if (!wvals.length) return base;
-  const commute = commuteScore(area, workplace);
-  if (commute == null) return base;
+  const scores = wps.map((wp) => commuteScore(area, wp)).filter((s) => s != null);
+  if (!scores.length) return base;
+  const commute = scores.reduce((a, b) => a + b, 0) / scores.length;
   const cw = wvals.reduce((s, w) => s + w, 0) / wvals.length;
   return matchScore({ ...categoryScores, commute }, { ...weights, commute: cw });
+}
+
+// Nearest workplace to an area: { label, distanceKm, text } or null.
+export function nearestWorkplace(area, workplaces) {
+  const wps = (Array.isArray(workplaces) ? workplaces : (workplaces ? [workplaces] : [])).filter((w) => w && w.lat != null && w.lon != null);
+  let best = null;
+  let bestD = Infinity;
+  for (const w of wps) {
+    const d = haversineKm(area.centroid, w);
+    if (d != null && d < bestD) { bestD = d; best = w; }
+  }
+  if (!best) return null;
+  return { label: best.label || best.area_name || "workplace", distanceKm: bestD, text: bestD < 1 ? `${Math.round(bestD * 1000)} m` : `${bestD.toFixed(1)} km` };
 }
 
 // Derive a 1-10 score per category from an area's indicators array.

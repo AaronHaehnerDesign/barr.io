@@ -58,6 +58,10 @@ export default function AgentSidebar({ className = "" }) {
           persona: data.profile.persona,
           priorities: data.profile.priorities || [],
           hard_filters: data.profile.hard_filters || [],
+          work_locations: data.profile.work_locations ?? profile?.work_locations ?? [],
+          budget_type: data.profile.budget_type ?? profile?.budget_type ?? null,
+          budget_max: data.profile.budget_max ?? profile?.budget_max ?? null,
+          rooms_needed: data.profile.rooms_needed ?? profile?.rooms_needed ?? null,
           raw_input_text: data.profile.summary || content,
           confirmed: !!profile?.confirmed
         });

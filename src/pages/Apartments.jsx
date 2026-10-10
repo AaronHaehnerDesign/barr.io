@@ -1,28 +1,25 @@
-import { useMemo, useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { useProfile } from "@/lib/useProfile";
 import { useDistricts } from "@/lib/useAreas";
 import { useApartments } from "@/lib/useApartments";
-import { matchScore, categoryScoresFromArea } from "@/lib/scoring";
+import { useWorkplaces } from "@/lib/useWorkplaces";
+import { matchScore, categoryScoresFromArea, nearestWorkplace } from "@/lib/scoring";
 import { categoriesForMode, PERSONA_FLIPS } from "@/lib/categories";
+import { eur } from "@/lib/apartmentFormat";
+import ApartmentCard from "@/components/ApartmentCard";
 import { Button } from "@/components/ui/button";
-import { Building2, BedDouble, Bath, Maximize, ArrowUpRight, Sparkles, MapPin, RotateCcw, Star } from "lucide-react";
+import { Building2, Sparkles, RotateCcw, Star } from "lucide-react";
 
 const BUDGET = {
   rent: { min: 500, max: 4000, step: 50, default: 2500 },
   buy: { min: 120000, max: 1500000, step: 10000, default: 650000 },
 };
-
-function eur(n) {
-  return new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n);
-}
-function priceLabel(listingType, price) {
-  return listingType === "rent" ? `${eur(price)}/mo` : eur(price);
-}
+const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
 
 export default function Apartments() {
   const { data: profile } = useProfile();
   const { data: districts } = useDistricts();
+  const workplaces = useWorkplaces();
 
   const [listingType, setListingType] = useState("rent");
   const cfg = BUDGET[listingType];
@@ -30,8 +27,22 @@ export default function Apartments() {
   const [area, setArea] = useState("all");
   const [rooms, setRooms] = useState("any");
 
-  // Reset budget to a sensible default when the listing type flips.
-  useEffect(() => { setMaxBudget(BUDGET[listingType].default); }, [listingType]);
+  // Pre-fill filters once from the onboarding profile (budget, rooms, rent/buy).
+  const didInit = useRef(false);
+  useEffect(() => {
+    if (didInit.current || !profile) return;
+    didInit.current = true;
+    const lt = profile.budget_type || "rent";
+    setListingType(lt);
+    if (profile.budget_max) setMaxBudget(clamp(profile.budget_max, BUDGET[lt].min, BUDGET[lt].max));
+    if (profile.rooms_needed) setRooms(profile.rooms_needed >= 4 ? "4plus" : String(profile.rooms_needed));
+  }, [profile]);
+
+  function toggleType(t) {
+    if (t === listingType) return;
+    setListingType(t);
+    setMaxBudget(BUDGET[t].default);
+  }
 
   // The user's best-matching district — offered as a one-tap "preferred area".
   const bestMatch = useMemo(() => {
@@ -59,11 +70,21 @@ export default function Apartments() {
 
   const { data: apartments = [], isLoading } = useApartments({ listingType, area, rooms, maxBudget });
 
+  // District id + centroid lookup by name (for area links + commute distance).
+  const districtMeta = useMemo(() => {
+    const ids = {};
+    const centroids = {};
+    (districts || []).forEach((d) => { ids[d.name] = d.id; centroids[d.name] = d.centroid; });
+    return { ids, centroids };
+  }, [districts]);
+
   function reset() {
     setArea("all");
     setRooms("any");
     setMaxBudget(BUDGET[listingType].default);
   }
+
+  const prefillNote = (profile?.budget_max || profile?.rooms_needed) && didInit.current;
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6">
@@ -77,12 +98,11 @@ export default function Apartments() {
       {/* Filters */}
       <div className="rounded-xl border bg-card p-4 shadow-sm mb-4">
         <div className="grid gap-4 md:grid-cols-4">
-          {/* Listing type */}
           <div>
             <label className="text-xs font-medium text-muted-foreground">Type</label>
             <div className="mt-1 inline-flex w-full rounded-lg border p-0.5 bg-muted">
               {["rent", "buy"].map((t) => (
-                <button key={t} onClick={() => setListingType(t)}
+                <button key={t} onClick={() => toggleType(t)}
                   className={`flex-1 px-3 py-1.5 text-xs rounded-md capitalize ${listingType === t ? "bg-background shadow-sm font-medium" : "text-muted-foreground"}`}>
                   {t === "rent" ? "Rent" : "Buy"}
                 </button>
@@ -90,7 +110,6 @@ export default function Apartments() {
             </div>
           </div>
 
-          {/* Budget */}
           <div className="md:col-span-2">
             <div className="flex items-center justify-between">
               <label className="text-xs font-medium text-muted-foreground">Max budget</label>
@@ -104,21 +123,19 @@ export default function Apartments() {
             </div>
           </div>
 
-          {/* Rooms */}
           <div>
-            <label className="text-xs font-medium text-muted-foreground">Rooms</label>
+            <label className="text-xs font-medium text-muted-foreground">Min rooms</label>
             <select value={rooms} onChange={(e) => setRooms(e.target.value)}
               className="mt-1 w-full rounded-lg border bg-background px-2 py-1.5 text-sm">
               <option value="any">Any</option>
-              <option value="1">1</option>
-              <option value="2">2</option>
-              <option value="3">3</option>
+              <option value="1">1+</option>
+              <option value="2">2+</option>
+              <option value="3">3+</option>
               <option value="4plus">4+</option>
             </select>
           </div>
         </div>
 
-        {/* Area + quick actions */}
         <div className="mt-4 flex flex-wrap items-end gap-3">
           <div className="min-w-[200px] flex-1">
             <label className="text-xs font-medium text-muted-foreground">Preferred area</label>
@@ -139,10 +156,10 @@ export default function Apartments() {
         </div>
       </div>
 
-      {/* Results */}
       <div className="flex items-center justify-between mb-3">
         <span className="text-sm text-muted-foreground">
           {isLoading ? "Searching…" : `${apartments.length} ${apartments.length === 1 ? "home" : "homes"} found`}
+          {prefillNote && <span className="ml-2 text-emerald-700">· filtered by your profile</span>}
         </span>
         <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700">
           <Star className="h-3 w-3" /> Placeholder data
@@ -171,41 +188,18 @@ export default function Apartments() {
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {apartments.map((a) => (
-            <div key={a.id} className="group rounded-xl border bg-card overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-              <div className="relative aspect-[4/3] overflow-hidden bg-muted">
-                <img src={a.image_url} alt={a.title} loading="lazy"
-                  className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
-                <span className="absolute top-2 left-2 rounded-full bg-black/70 px-2 py-0.5 text-xs font-semibold text-white">
-                  {priceLabel(a.listing_type, a.price)}
-                </span>
-                <span className="absolute top-2 right-2 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-medium text-slate-700 capitalize">
-                  {a.listing_type}
-                </span>
-              </div>
-              <div className="p-3">
-                <h3 className="font-semibold text-sm truncate">{a.title}</h3>
-                <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground truncate">
-                  <MapPin className="h-3 w-3 shrink-0" /> {a.district_name}{a.barri_name ? ` · ${a.barri_name}` : ""}
-                </p>
-                <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                  <span className="inline-flex items-center gap-1"><BedDouble className="h-3.5 w-3.5" /> {a.rooms} bed</span>
-                  <span className="inline-flex items-center gap-1"><Bath className="h-3.5 w-3.5" /> {a.bathrooms ?? 1} bath</span>
-                  <span className="inline-flex items-center gap-1"><Maximize className="h-3.5 w-3.5" /> {a.size_sqm} m²</span>
-                </div>
-                <div className="mt-2 flex flex-wrap gap-1">
-                  {a.has_terrace && <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">Terrace</span>}
-                  {a.has_elevator && <span className="rounded bg-sky-50 px-1.5 py-0.5 text-[10px] font-medium text-sky-700">Elevator</span>}
-                  {a.floor && <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">{a.floor} floor</span>}
-                </div>
-                <div className="mt-3 flex items-center justify-between">
-                  <Button asChild variant="ghost" size="sm" className="px-0 text-primary hover:bg-transparent">
-                    <Link to={`/area/district/${a.district_name}`}>View area<ArrowUpRight className="h-3.5 w-3.5" /></Link>
-                  </Button>
-                </div>
-              </div>
-            </div>
-          ))}
+          {apartments.map((a) => {
+            const centroid = districtMeta.centroids[a.district_name];
+            const nw = centroid ? nearestWorkplace({ centroid }, workplaces) : null;
+            return (
+              <ApartmentCard
+                key={a.id}
+                a={a}
+                areaTo={districtMeta.ids[a.district_name] ? `/area/district/${districtMeta.ids[a.district_name]}` : null}
+                distanceLabel={nw ? `${nw.text} to ${nw.label}` : null}
+              />
+            );
+          })}
         </div>
       )}
     </div>

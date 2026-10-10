@@ -152,13 +152,24 @@ export default async function (req: any) {
     const welcome = welcomeFor(audience);
     const priorMessages = conversation?.messages?.length ? conversation.messages : [welcome];
 
+    // Barcelona district names — always loaded so the agent can normalise work
+    // locations to a known area (and answer area questions consistently).
+    const districtNamePage = await base44.entities.District.filter(
+      {}, { limit: 50, sort: 'code', fields: ['name'] }
+    );
+    const districtNamesList = (districtNamePage.items || []).map((d: any) => d.name).join(', ');
+
     const accumulated = existingProfile ? {
       audience: existingProfile.audience || audience,
       persona: existingProfile.persona,
       priorities: existingProfile.priorities || [],
       hard_filters: existingProfile.hard_filters || [],
+      work_locations: existingProfile.work_locations || [],
+      budget_type: existingProfile.budget_type || null,
+      budget_max: existingProfile.budget_max || null,
+      rooms_needed: existingProfile.rooms_needed || null,
       summary: existingProfile.raw_input_text || "",
-    } : { audience };
+    } : { audience, work_locations: [], budget_type: null, budget_max: null, rooms_needed: null };
 
     // --- Detect whether the user is asking about a specific district/barri ---
     let dataSection = "";
@@ -211,7 +222,7 @@ ACCUMULATE, DON'T RESTART. The user may already have a ${audience === "b2b" ? "B
 CURRENT ACCUMULATED PROFILE (treat as already-collected truth, build on it):
 ${JSON.stringify(accumulated)}
 
-When you output a new profile, carry forward every prior priority and hard filter that the user has not contradicted, merge in any new preferences from this turn, and re-rank/re-weight the combined set.
+When you output a new profile, carry forward every prior priority, hard filter, work location, budget and room value that the user has not contradicted, merge in any new preferences from this turn, and re-rank/re-weight the combined set.
 
 ${dataSection ? `${dataSection}
 
@@ -226,8 +237,15 @@ Rules for data questions:
 
 Collect mode-appropriate context:
 ${audience === "b2b"
-  ? `BUSINESS: ask at most 3 to 5 short follow-up questions across: business type / sector, team size, premises type (storefront / office / workshop / logistics), premises budget, footfall & customer access, staff commute, loading / parking. Never re-ask what the user already told you. Persona options: ${personaOptions}.`
-  : `PERSONAL: ask at most 3 to 5 short follow-up questions across: household composition, budget, car yes/no, work location, lifestyle. Never re-ask what the user already told you. Persona options: ${personaOptions}.`}
+  ? `BUSINESS: ask at most 3 to 5 short follow-up questions across: business type / sector, team size, premises type (storefront / office / workshop / logistics), premises budget, footfall & customer access, staff commute, loading / parking. Never re-ask what the user already told you. Persona options: ${personaOptions}. Also ask which Barcelona district or neighbourhood the business will be located in, and capture it as a single work_locations entry.`
+  : `PERSONAL: ask at most 3 to 5 short follow-up questions across: household composition, budget (and whether to rent or buy), number of bedrooms needed, car yes/no, work location(s), lifestyle. Never re-ask what the user already told you. Persona options: ${personaOptions}.`}
+
+APARTMENT SEARCH — capture so the app can show matching homes and pin work commutes on the map. Carry every value forward each turn (like priorities); only change one when the user explicitly updates it.
+- work_locations: a list of { "label": short label, "area_name": a Barcelona district or barri name }. For a couple where both partners work in an office, capture BOTH partners' work locations (two entries, e.g. labels "Partner 1" and "Partner 2"). For a single worker, one entry. For business mode, one entry for the business location. Map each place the user names to the closest name from the Barcelona districts list below, or a known barri (el Born, Poblenou, Sant Antoni, Gràcia, el Raval, Sarrià…). If you cannot identify the area, set area_name to null and put the raw place in label.
+- budget_type: "rent" or "buy".
+- budget_max: a number — the max monthly rent (€) when budget_type is rent, or the max purchase price (€) when buy.
+- rooms_needed: a number of bedrooms needed (minimum).
+Barcelona districts: ${districtNamesList}.
 
 The opening assistant message already asked one mode-specific question. On the first turn, do NOT repeat it — acknowledge the user's first answer and ask the next mode-appropriate question.
 
@@ -238,7 +256,7 @@ ${audience === "b2b" ? `The Business-only categories (commercial, customeraccess
 
 Output STRICT JSON:
 {
-  "reply": "what you say this turn (warm, brief, under ~80 words). If answering a data question, give the grounded answer here. If you still need profile info, ask the next 1-2 questions here. If the user changed a priority or filter this turn, start with a one-sentence confirmation of exactly what changed.",
+  "reply": "what you say this turn (warm, brief, under ~80 words). If answering a data question, give the grounded answer here. If you still need profile info, ask the next 1-2 questions here. If the user changed a priority, filter, work location, budget or rooms this turn, start with a one-sentence confirmation of exactly what changed.",
   "ready": boolean,
   "audience": "${audience}",
   "profile": {
@@ -246,13 +264,17 @@ Output STRICT JSON:
     "persona": "string from the persona options above",
     "priorities": [ { "category_key": "...", "rank": 1, "weight": 85 } ],
     "hard_filters": [ { "label": "Metro within 500 m", "type": "distance_metro_500", "value": true } ],
+    "work_locations": [ { "label": "Partner 1", "area_name": "Eixample" } ],
+    "budget_type": "rent",
+    "budget_max": 2000,
+    "rooms_needed": 2,
     "summary": "one sentence summary of the user's accumulated situation"
   }
 }
 
 Rules:
 - Always respond in the same language as the user (default English).
-- ALWAYS return the complete profile object on EVERY turn — not only when ready. It is the full accumulated state: merge the user's new input into the CURRENT ACCUMULATED PROFILE. Carry forward every prior priority and hard filter the user has not contradicted; only drop or change one when the user explicitly asks. For a pure data question, return the profile unchanged.
+- ALWAYS return the complete profile object on EVERY turn — not only when ready. It is the full accumulated state: merge the user's new input into the CURRENT ACCUMULATED PROFILE. Carry forward every prior priority, hard filter, work location, budget and room value the user has not contradicted; only drop or change one when the user explicitly asks. For a pure data question, return the profile unchanged.
 - The user can EDIT their priorities at any time. Handle these requests: "add X" (insert the category with a sensible default weight), "remove/drop X" (delete it), "make X less/more important", "lower X", "raise X", "X matters more/less" (adjust the weight up or down in steps of ~15), and explicit reordering ("X above Y"). After ANY edit, re-assign rank 1..N by descending weight.
 - Only set ready=true once you know the persona and at least 5 ranked priorities. Edits can happen before or after ready. (Audience is already known.)
 - Hard filters are optional; only include ones the user explicitly cares about. value:false = must NOT.
@@ -281,6 +303,12 @@ Rules:
               hard_filters: { type: "array", items: { type: "object", properties: {
                 label: { type: "string" }, type: { type: "string" }, value: { type: "boolean" }
               } } },
+              work_locations: { type: "array", items: { type: "object", properties: {
+                label: { type: "string" }, area_name: { type: "string" }
+              } } },
+              budget_type: { type: "string", enum: ["rent", "buy"] },
+              budget_max: { type: "number" },
+              rooms_needed: { type: "number" },
               summary: { type: "string" }
             }
           }

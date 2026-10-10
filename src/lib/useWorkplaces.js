@@ -1,0 +1,40 @@
+import { useMemo } from "react";
+import { useProfile } from "./useProfile";
+import { useDistricts, useBarris } from "./useAreas";
+
+// Resolve the onboarding-captured work_locations (each {label, area_name}) to
+// real {label, lat, lon} coordinates by matching area_name against the stored
+// District/Barri names. Used by the Map and Results pages to drop pins and to
+// compute commute proximity.
+const norm = (s) => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+const stripArticle = (s) => s.replace(/^(el|la|els|les|l')\s+/, "").trim();
+
+export function useWorkplaces() {
+  const { data: profile } = useProfile();
+  const { data: districts } = useDistricts();
+  const { data: barris } = useBarris();
+
+  return useMemo(() => {
+    const locs = profile?.work_locations || [];
+    if (!locs.length) return [];
+    const all = [
+      ...(districts || []).map((d) => ({ name: d.name, centroid: d.centroid })),
+      ...(barris || []).map((b) => ({ name: b.name, centroid: b.centroid })),
+    ];
+    const find = (areaName) => {
+      if (!areaName) return null;
+      const t = stripArticle(norm(areaName));
+      return all.find((a) => {
+        const n = stripArticle(norm(a.name));
+        if (n.length < 4) return false;
+        return n === t || t.includes(n) || n.includes(t);
+      }) || null;
+    };
+    return locs
+      .map((l) => {
+        const m = find(l.area_name);
+        return { label: l.label || l.area_name || "Workplace", area_name: l.area_name, lat: m?.centroid?.lat ?? null, lon: m?.centroid?.lon ?? null };
+      })
+      .filter((l) => l.lat != null && l.lon != null);
+  }, [profile, districts, barris]);
+}

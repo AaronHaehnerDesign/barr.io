@@ -8,6 +8,7 @@ import { useActiveAudience } from "@/lib/useActiveAudience";
 import { CATEGORIES, CATEGORY_MAP, INDICATORS, categoriesForMode, indicatorsForMode } from "@/lib/categories";
 import { matchScore, scoreColor, categoryScoresFromArea } from "@/lib/scoring";
 import { areaIntro } from "@/lib/areaIntro";
+import AreaApartments from "@/components/AreaApartments";
 
 // Fit the detail map tightly to the area's boundary so the polygon is centered
 // and fills the frame (no matter whether it is a district or a barri).
@@ -177,6 +178,9 @@ export default function AreaDetail() {
           </tbody>
         </table>
       </div>
+
+      {/* Apartments available in this area, filtered by the user's profile */}
+      <AreaApartments districtName={type === "district" ? a.name : a.district_name} barriName={type === "barri" ? a.name : undefined} />
     </div>
   );
 }
