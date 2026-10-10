@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, NavLink, Outlet } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { Map, ListOrdered, GitCompareArrows, User, LogOut, Home, SlidersHorizontal, Bot, PanelRightClose, PanelRightOpen, X } from "lucide-react";
+import { Map, ListOrdered, GitCompareArrows, User, LogOut, Home, SlidersHorizontal, Bot, PanelRightClose, PanelRightOpen, X, BarChart3, Bookmark, BookOpen, Users } from "lucide-react";
 import AgentSidebar from "@/components/AgentSidebar";
 
 const NAV = [
@@ -9,7 +9,21 @@ const NAV = [
   { to: "/results", label: "Results", icon: ListOrdered },
   { to: "/map", label: "Map", icon: Map },
   { to: "/compare", label: "Compare", icon: GitCompareArrows },
-  { to: "/priorities", label: "Priorities", icon: SlidersHorizontal }
+  { to: "/priorities", label: "Priorities", icon: SlidersHorizontal },
+  { to: "/data-insights", label: "Insights", icon: BarChart3 },
+  { to: "/saved-comparisons", label: "Saved", icon: Bookmark },
+  { to: "/glossary", label: "Glossary", icon: BookOpen },
+  { to: "/persona-library", label: "Personas", icon: Users }
+];
+
+// Compact set for the mobile bottom nav (keeps 6 slots).
+const MOBILE_NAV = [
+  { to: "/agent", label: "Agent", icon: Bot },
+  { to: "/results", label: "Results", icon: ListOrdered },
+  { to: "/map", label: "Map", icon: Map },
+  { to: "/compare", label: "Compare", icon: GitCompareArrows },
+  { to: "/priorities", label: "Priorities", icon: SlidersHorizontal },
+  { to: "/profile", label: "Profile", icon: User }
 ];
 
 const sideLinkClass = ({ isActive }) =>
@@ -113,7 +127,7 @@ export default function AppLayout() {
       {/* Mobile bottom nav */}
       <nav className={`md:hidden sticky bottom-0 z-40 border-t bg-background ${mobileAgent ? "hidden" : ""}`}>
         <div className="grid grid-cols-6">
-          {[...NAV, { to: "/profile", label: "Profile", icon: User }].map((n) => (
+          {MOBILE_NAV.map((n) => (
             <NavLink
               key={n.to}
               to={n.to}

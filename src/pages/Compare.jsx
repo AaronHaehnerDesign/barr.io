@@ -33,6 +33,22 @@ export default function Compare() {
   const preselectRef = useRef(null);
   const manualRef = useRef(false); // true once the user picks areas by hand
 
+  // Restore a saved comparison from the URL (?type=&ids=) on first load, so the
+  // Saved Comparisons page can jump straight back into a past research set.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const idsParam = params.get("ids");
+    const typeParam = params.get("type");
+    if (!idsParam) return;
+    manualRef.current = true;
+    if (typeParam) {
+      setType(typeParam);
+      preselectRef.current = typeParam;
+    }
+    setSelected(idsParam.split(",").filter(Boolean));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const palette = ["#0ea5e9", "#f59e0b", "#a855f7"];
 
   // Preselect the user's top recommended area. Re-runs when priorities/profile
