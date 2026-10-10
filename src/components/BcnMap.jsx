@@ -32,12 +32,13 @@ function fitToData(map, gj) {
 // MapLibre canvas with colored area polygons and workplace pins. Workplace pins
 // are profile-driven (set during onboarding), passed in as `workMarkers`
 // ([{label, lon, lat}]); the map does not manage them itself.
-export default function BcnMap({ geojson, onAreaClick, workMarkers = [] }) {
+export default function BcnMap({ geojson, onAreaClick, workMarkers = [], highlightId = null }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const sourceRef = useRef(null);
   const workMarkersRef = useRef([]);
   const popupRef = useRef(null);
+  const prevHighlight = useRef(null);
   const onAreaClickRef = useRef(onAreaClick);
   onAreaClickRef.current = onAreaClick;
   const workMarkersRef2 = useRef(workMarkers);
@@ -54,10 +55,10 @@ export default function BcnMap({ geojson, onAreaClick, workMarkers = [] }) {
     map.addControl(new maplibregl.NavigationControl(), "top-left");
 
     map.on("load", () => {
-      map.addSource("areas", { type: "geojson", data: geojson || { type: "FeatureCollection", features: [] } });
+      map.addSource("areas", { type: "geojson", data: geojson || { type: "FeatureCollection", features: [] }, promoteId: "id" });
       sourceRef.current = map.getSource("areas");
-      map.addLayer({ id: "area-fill", type: "fill", source: "areas", paint: { "fill-color": ["get", "color"], "fill-opacity": 0.65 } });
-      map.addLayer({ id: "area-line", type: "line", source: "areas", paint: { "line-color": "#ffffff", "line-width": 0.8 } });
+      map.addLayer({ id: "area-fill", type: "fill", source: "areas", paint: { "fill-color": ["get", "color"], "fill-opacity": ["case", ["boolean", ["feature-state", "highlight"], false], 0.92, 0.6] } });
+      map.addLayer({ id: "area-line", type: "line", source: "areas", paint: { "line-color": ["case", ["boolean", ["feature-state", "highlight"], false], "#0f172a", "#ffffff"], "line-width": ["case", ["boolean", ["feature-state", "highlight"], false], 3, 0.8] } });
 
       const popup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 12 });
       popupRef.current = popup;
@@ -88,6 +89,15 @@ export default function BcnMap({ geojson, onAreaClick, workMarkers = [] }) {
     sourceRef.current.setData(geojson || { type: "FeatureCollection", features: [] });
     fitToData(map, geojson);
   }, [geojson]);
+
+  // Highlight a single area (e.g. when hovering its result card) via feature-state.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (prevHighlight.current != null) map.removeFeatureState({ source: "areas", id: prevHighlight.current });
+    if (highlightId != null) map.setFeatureState({ source: "areas", id: highlightId }, { highlight: true });
+    prevHighlight.current = highlightId;
+  }, [highlightId]);
 
   // Workplace pins (one per partner) — 💼 markers with a hover tooltip label.
   useEffect(() => {

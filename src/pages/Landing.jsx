@@ -61,7 +61,6 @@ export default function Landing() {
       <footer className="border-t">
         <div className="mx-auto max-w-6xl px-4 py-6 flex items-center justify-between text-xs text-muted-foreground">
           <span className="inline-flex items-center gap-1"><Footprints className="h-3.5 w-3.5" /> Built for Barcelona · 10 districts · 73 barris</span>
-          <span className="rounded bg-amber-100 px-1.5 py-0.5 text-amber-800 font-medium">sample data</span>
         </div>
       </footer>
     </div>

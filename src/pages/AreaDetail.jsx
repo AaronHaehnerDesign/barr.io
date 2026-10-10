@@ -62,7 +62,12 @@ export default function AreaDetail() {
   (profile?.priorities || []).forEach((p) => (weights[p.category_key] = p.weight));
   const ms = Object.keys(weights).length ? matchScore(scores, weights) : null;
 
-  const sorted = cats.map((c) => ({ ...c, score: scores[c.key] })).filter((c) => c.score != null);
+  // Rank category scores by the user's priority weights (most relevant first);
+  // categories without a weight fall back to their default order.
+  const sorted = cats
+    .map((c) => ({ ...c, score: scores[c.key], weight: weights[c.key] ?? -1 }))
+    .filter((c) => c.score != null)
+    .sort((x, y) => y.weight - x.weight);
   const good = [...sorted].sort((x, y) => y.score - x.score).slice(0, 3);
   const watch = [...sorted].sort((x, y) => x.score - y.score).slice(0, 3);
 
@@ -78,7 +83,6 @@ export default function AreaDetail() {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-bold">{a.name}</h1>
-            <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800">sample data</span>
           </div>
           <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1"><MapPin className="h-3.5 w-3.5" />
             {type === "barri" ? `Barri · ${a.district_name}` : "District"} · {a.population?.toLocaleString()} inhabitants
@@ -124,7 +128,7 @@ export default function AreaDetail() {
       </div>
 
       {/* all category scores */}
-      <h2 className="mt-6 mb-2 font-semibold">All category scores</h2>
+      <h2 className="mt-6 mb-2 font-semibold">Category scores · ranked by your relevance</h2>
       <div className="space-y-2">
         {sorted.map((c) => (
           <div key={c.key} className="flex items-center gap-3 rounded-lg border bg-card p-3">

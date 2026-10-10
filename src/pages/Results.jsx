@@ -18,6 +18,7 @@ export default function Results() {
   const districts = useDistricts();
   const barris = useBarris();
   const [level, setLevel] = useState("district");
+  const [hoveredId, setHoveredId] = useState(null);
   const workplaces = useWorkplaces();
 
   const weights = useMemo(() => {
@@ -93,7 +94,7 @@ export default function Results() {
             {ranked.slice(0, 20).map((a, i) => {
               const nw = nearestWorkplace(a, workplaces);
               return (
-                <div key={a.id} className={`rounded-xl border bg-card p-4 shadow-sm ${i < 3 ? "ring-1 ring-emerald-200" : ""}`}>
+                <div key={a.id} onMouseEnter={() => setHoveredId(a.id)} onMouseLeave={() => setHoveredId(null)} className={`rounded-xl border bg-card p-4 shadow-sm transition-shadow hover:shadow-md ${i < 3 ? "ring-1 ring-emerald-200" : ""}`}>
                   <div className="flex items-start gap-3">
                     <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl text-white" style={{ backgroundColor: scoreColor((a.match_score / 10) + 1) }}>
                       <span className="text-lg font-bold leading-none">{a.match_score}</span>
@@ -127,6 +128,7 @@ export default function Results() {
             <BcnMap
               geojson={geojson}
               workMarkers={workplaces}
+              highlightId={hoveredId}
               onAreaClick={(id) => navigate(`/area/${level}/${id}`)}
             />
           </div>

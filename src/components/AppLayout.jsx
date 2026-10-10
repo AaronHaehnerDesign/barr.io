@@ -86,7 +86,6 @@ export default function AppLayout() {
             </span>
             <span className="tracking-tight">BarrioMatch</span>
           </Link>
-          <span className="ml-auto rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800">sample</span>
         </div>
 
         <div className="px-3 pt-3">
