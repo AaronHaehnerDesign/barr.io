@@ -38,7 +38,7 @@ export default function PersonaBrowser() {
     [audience]
   );
   const [selectedName, setSelectedName] = useState(null);
-  const [level, setLevel] = useState("district");
+  const [level, setLevel] = useState("barri");
 
   const selected = library.find((p) => p.name === selectedName) || library[0];
 

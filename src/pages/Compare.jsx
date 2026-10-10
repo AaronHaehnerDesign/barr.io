@@ -29,7 +29,7 @@ export default function Compare() {
   const cats = categoriesForMode(aud);
   const inds = indicatorsForMode(aud);
   const qc = useQueryClient();
-  const [type, setType] = useState("district");
+  const [type, setType] = useState("barri");
   const [selected, setSelected] = useState([]); // ids
   const [picker, setPicker] = useState(false);
   const [cat, setCat] = useState("all"); // active category tab

@@ -44,7 +44,7 @@ export default function BusinessDashboard() {
   const { data: profile } = useProfile();
   const districts = useDistricts();
   const barris = useBarris();
-  const [type, setType] = useState("district");
+  const [type, setType] = useState("barri");
 
   const data = type === "district" ? districts.data : barris.data;
   const ranked = useRanked(profile?.audience, profile?.priorities, profile?.persona, data);

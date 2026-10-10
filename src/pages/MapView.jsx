@@ -16,7 +16,7 @@ export default function MapView() {
   const { data: profile } = useProfile();
   const districts = useDistricts();
   const barris = useBarris();
-  const [level, setLevel] = useState("district");
+  const [level, setLevel] = useState("barri");
   const [metric, setMetric] = useState("match");
 
   const { audience } = useActiveAudience();
