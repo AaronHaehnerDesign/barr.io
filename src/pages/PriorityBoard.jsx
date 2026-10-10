@@ -39,19 +39,20 @@ export default function PriorityBoard() {
 
   const cats = categoriesForMode(profile.audience || "b2c");
   const list = items.length ? items : (profile.priorities || []);
-  // The board always reflects the chosen weights: highest weight on top.
-  const ordered = ranked(list);
+  // The board stays in its current order while editing; weights are re-ranked
+  // only when the profile is confirmed, so rows don't jump mid-edit.
+  const ordered = list;
 
   function setWeight(key, w) {
     const base = (items.length ? items : profile.priorities || []).map((p) =>
       p.category_key === key ? { ...p, weight: w } : p
     );
-    setItems(ranked(base));
+    setItems(base);
   }
 
   function remove(key) {
     const base = (items.length ? items : profile.priorities || []).filter((p) => p.category_key !== key);
-    setItems(ranked(base));
+    setItems(base);
   }
 
   const filterList = filters.length ? filters : (profile?.hard_filters || []);
@@ -82,7 +83,7 @@ export default function PriorityBoard() {
 
   function addCategory(key) {
     if (list.some((p) => p.category_key === key)) return;
-    setItems(ranked([...list, { category_key: key, rank: list.length + 1, weight: 50 }]));
+    setItems([...list, { category_key: key, rank: list.length + 1, weight: 50 }]);
   }
 
   async function confirm() {
@@ -101,7 +102,7 @@ export default function PriorityBoard() {
         <Sparkles className="h-5 w-5 text-primary" />
         <h1 className="text-lg font-semibold">Your priority board</h1>
       </div>
-      <p className="text-sm text-muted-foreground mb-5">Set how much each category matters (0–100). The board re-orders by weight as you adjust — confirm to save.</p>
+      <p className="text-sm text-muted-foreground mb-5">Set how much each category matters (0–100). Rows stay put while you edit — confirm to re-rank and save.</p>
       {profile.persona && <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">Persona: {profile.persona}</div>}
 
       <div className="space-y-2">

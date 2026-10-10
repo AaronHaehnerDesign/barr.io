@@ -34,7 +34,6 @@ export default function AreaApartments({ districtName, barriName }) {
   }, [districtName, barriName, listingType, maxBudget, roomsNeeded]);
 
   // District centroid for the "distance to nearest workplace" chip.
-  const districtId = useMemo(() => (districts || []).find((d) => d.name === districtName)?.id || null, [districts, districtName]);
   const districtCentroid = useMemo(
     () => (districts || []).find((d) => d.name === districtName)?.centroid || null,
     [districts, districtName]
@@ -70,7 +69,6 @@ export default function AreaApartments({ districtName, barriName }) {
               <ApartmentCard
                 key={a.id}
                 a={a}
-                areaTo={districtId ? `/area/district/${districtId}` : null}
                 distanceLabel={nw ? `${nw.text} to ${nw.label}` : null}
               />
             );

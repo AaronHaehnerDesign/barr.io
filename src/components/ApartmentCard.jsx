@@ -3,10 +3,15 @@ import { Image } from "@/components/ui/image";
 import { BedDouble, Bath, Maximize, MapPin, ArrowUpRight } from "lucide-react";
 import { priceLabel } from "@/lib/apartmentFormat";
 
-// One apartment listing card. Used on the Apartments page and on area detail
-// pages. Images are placeholder photos served from media.base44.com, so they go
-// through the Image component (resized/encoded per device).
-export default function ApartmentCard({ a, distanceLabel, areaTo }) {
+// One apartment listing card. The "View area" link resolves to the listing's
+// barri when a barri_id is stored, otherwise its district — both come from the
+// database (set on each record), so the link always points at a real area.
+export default function ApartmentCard({ a, distanceLabel }) {
+  const areaTo = a.barri_id
+    ? `/area/barri/${a.barri_id}`
+    : a.district_id
+      ? `/area/district/${a.district_id}`
+      : null;
   return (
     <div className="group rounded-xl border bg-card overflow-hidden shadow-sm hover:shadow-md transition-shadow">
       <div className="relative aspect-[4/3] overflow-hidden bg-muted">

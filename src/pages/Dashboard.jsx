@@ -5,6 +5,7 @@ import { useDistricts } from "@/lib/useAreas";
 import { CATEGORIES, CATEGORY_MAP, PERSONA_FLIPS, categoriesForMode } from "@/lib/categories";
 import { categoryScoresFromArea, matchScore, areaSummary, scoreColor } from "@/lib/scoring";
 import { areaIntro } from "@/lib/areaIntro";
+import DashboardApartments from "@/components/DashboardApartments";
 import CategoryIcon from "@/components/CategoryIcon";
 import { Button } from "@/components/ui/button";
 import { LayoutDashboard, Sparkles, ArrowRight, Map as MapIcon, GitCompareArrows, SlidersHorizontal, ChevronRight, BarChart3, Users } from "lucide-react";
@@ -108,6 +109,8 @@ export default function Dashboard() {
           </Link>
         ))}
       </div>
+
+      <DashboardApartments districtNames={top3.map((a) => a.name)} />
 
       <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
         <QuickLink to="/map" icon={MapIcon} label="Map" />

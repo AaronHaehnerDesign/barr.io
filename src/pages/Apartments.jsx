@@ -71,11 +71,10 @@ export default function Apartments() {
   const { data: apartments = [], isLoading } = useApartments({ listingType, area, rooms, maxBudget });
 
   // District id + centroid lookup by name (for area links + commute distance).
-  const districtMeta = useMemo(() => {
-    const ids = {};
-    const centroids = {};
-    (districts || []).forEach((d) => { ids[d.name] = d.id; centroids[d.name] = d.centroid; });
-    return { ids, centroids };
+  const districtCentroids = useMemo(() => {
+    const m = {};
+    (districts || []).forEach((d) => { m[d.name] = d.centroid; });
+    return m;
   }, [districts]);
 
   function reset() {
@@ -189,13 +188,12 @@ export default function Apartments() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {apartments.map((a) => {
-            const centroid = districtMeta.centroids[a.district_name];
+            const centroid = districtCentroids[a.district_name];
             const nw = centroid ? nearestWorkplace({ centroid }, workplaces) : null;
             return (
               <ApartmentCard
                 key={a.id}
                 a={a}
-                areaTo={districtMeta.ids[a.district_name] ? `/area/district/${districtMeta.ids[a.district_name]}` : null}
                 distanceLabel={nw ? `${nw.text} to ${nw.label}` : null}
               />
             );

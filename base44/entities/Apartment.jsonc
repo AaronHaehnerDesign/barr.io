@@ -23,6 +23,14 @@
     "barri_name": {
       "type": "string"
     },
+    "district_id": {
+      "type": "string",
+      "description": "Entity id of the District this listing is in, for deep-linking to the area detail page."
+    },
+    "barri_id": {
+      "type": "string",
+      "description": "Entity id of the Barri this listing is in (when known), so the card links to the neighbourhood."
+    },
     "rooms": {
       "type": "number"
     },
