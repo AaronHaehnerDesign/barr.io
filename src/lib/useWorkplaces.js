@@ -32,8 +32,9 @@ export function useWorkplaces() {
     };
     return locs
       .map((l) => {
-        const m = find(l.area_name);
-        return { label: l.label || l.area_name || "Workplace", area_name: l.area_name, lat: m?.centroid?.lat ?? null, lon: m?.centroid?.lon ?? null };
+        const exact = typeof l.lat === "number" && typeof l.lon === "number" && l.lat > 41.3 && l.lat < 41.5 && l.lon > 2.05 && l.lon < 2.25;
+        const m = exact ? null : find(l.area_name);
+        return { label: l.label || l.area_name || "Workplace", area_name: l.area_name, lat: exact ? l.lat : (m?.centroid?.lat ?? null), lon: exact ? l.lon : (m?.centroid?.lon ?? null) };
       })
       .filter((l) => l.lat != null && l.lon != null);
   }, [profile, districts, barris]);

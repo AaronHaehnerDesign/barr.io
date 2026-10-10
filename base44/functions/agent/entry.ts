@@ -241,7 +241,7 @@ ${audience === "b2b"
   : `PERSONAL: ask at most 3 to 5 short follow-up questions across: household composition, budget (and whether to rent or buy), number of bedrooms needed, car yes/no, work location(s), must-haves and no-goes for the neighbourhood, lifestyle. Never re-ask what the user already told you. Before asking anything, check the whole conversation: if the user said they (or their partner) work remotely / from home, do NOT ask about working from home, office location or commute for that person — treat it as answered. Persona options: ${personaOptions}.`}
 
 APARTMENT SEARCH — capture so the app can show matching homes and pin work commutes on the map. Carry every value forward each turn (like priorities); only change one when the user explicitly updates it.
-- work_locations: a list of { "label": short label, "area_name": a Barcelona district or barri name }. For a couple where both partners work in an office, capture BOTH partners' work locations (two entries, e.g. labels "Partner 1" and "Partner 2"). For a single worker, one entry. For business mode, one entry for the business location. Map each place the user names to the closest name from the Barcelona districts list below, or a known barri (el Born, Poblenou, Sant Antoni, Gràcia, el Raval, Sarrià…). If you cannot identify the area, set area_name to null and put the raw place in label.
+- work_locations: a list of { "label": short label, "area_name": a Barcelona district or barri name }. For a couple where both partners work in an office, capture BOTH partners' work locations (two entries, e.g. labels "Partner 1" and "Partner 2"). For a single worker, one entry. For business mode, one entry for the business location. Map each place the user names to the closest name from the Barcelona districts list below, or a known barri (el Born, Poblenou, Sant Antoni, Gràcia, el Raval, Sarrià…). If you cannot identify the area, set area_name to null and put the raw place in label. ALSO set "address" to the specific place the user named (street, company, building, landmark) and "lat"/"lon" to that exact place's real WGS84 coordinates in Barcelona (e.g. Torre Glòries → 41.4036, 2.1894). Use the precise location, not the district centre; only fall back to the area's centre when the user gave nothing more specific. Keep existing coordinates unless the user changes the workplace.
 - budget_type: "rent" or "buy".
 - budget_max: a number — the max monthly rent (€) when budget_type is rent, or the max purchase price (€) when buy.
 - rooms_needed: a number of bedrooms needed (minimum).
@@ -306,7 +306,7 @@ Rules:
                 label: { type: "string" }, type: { type: "string" }, value: { type: "boolean" }
               } } },
               work_locations: { type: "array", items: { type: "object", properties: {
-                label: { type: "string" }, area_name: { type: "string" }
+                label: { type: "string" }, area_name: { type: "string" }, address: { type: "string" }, lat: { type: "number" }, lon: { type: "number" }
               } } },
               budget_type: { type: "string", enum: ["rent", "buy"] },
               budget_max: { type: "number" },

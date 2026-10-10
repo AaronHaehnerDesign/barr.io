@@ -96,11 +96,6 @@ export default function AgentSidebar({ className = "" }) {
             ))}
           </div>
         )}
-        {convo?.status !== "profile_ready" && (
-          <p className="text-center text-[11px] font-medium text-muted-foreground">
-            Question {Math.min(3, messages.filter((m) => m.role === "user").length + 1)} of 3
-          </p>
-        )}
         {loading && (
           <div className="flex justify-start">
             <div className="rounded-2xl bg-muted px-4 py-3"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
