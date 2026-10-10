@@ -4,7 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { UserPlus, Mail, Lock, Loader2 } from "lucide-react";
+import { UserPlus, Mail, Lock, Loader2, Home, Building2 } from "lucide-react";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import AuthLayout from "@/components/AuthLayout";
 import GoogleIcon from "@/components/GoogleIcon";
@@ -19,6 +19,7 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const [showOtp, setShowOtp] = useState(false);
   const [otpCode, setOtpCode] = useState("");
+  const [accountType, setAccountType] = useState("personal");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -46,7 +47,11 @@ export default function Register() {
       if (result?.access_token) {
         base44.auth.setToken(result.access_token);
       }
-      window.location.href = safeReturnTo();
+      // Persist the chosen account type, then start the forced first-time onboarding.
+      try {
+        await base44.auth.updateMe({ account_type: accountType });
+      } catch { /* ignore — schema default (personal) still applies */ }
+      window.location.href = "/onboarding";
     } catch (err) {
       setError(err.message || "Invalid verification code");
     } finally {
@@ -157,6 +162,30 @@ export default function Register() {
         </div>
         <div className="relative flex justify-center text-xs uppercase">
           <span className="bg-card px-3 text-muted-foreground">or</span>
+        </div>
+      </div>
+
+      <div className="mb-6">
+        <Label className="mb-2 block">I'm signing up for</Label>
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={() => setAccountType("personal")}
+            className={`flex flex-col items-start gap-1 rounded-xl border p-3 text-left transition-colors ${accountType === "personal" ? "border-primary ring-1 ring-primary bg-primary/5" : "hover:bg-muted"}`}
+          >
+            <span className="grid h-8 w-8 place-items-center rounded-lg bg-muted"><Home className="h-4 w-4" /></span>
+            <span className="text-sm font-semibold">Personal</span>
+            <span className="text-[11px] text-muted-foreground leading-relaxed">A home or neighbourhood for you and your household.</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setAccountType("business")}
+            className={`flex flex-col items-start gap-1 rounded-xl border p-3 text-left transition-colors ${accountType === "business" ? "border-primary ring-1 ring-primary bg-primary/5" : "hover:bg-muted"}`}
+          >
+            <span className="grid h-8 w-8 place-items-center rounded-lg bg-muted"><Building2 className="h-4 w-4" /></span>
+            <span className="text-sm font-semibold">Business</span>
+            <span className="text-[11px] text-muted-foreground leading-relaxed">A location for your business, with commercial & operations data.</span>
+          </button>
         </div>
       </div>
 

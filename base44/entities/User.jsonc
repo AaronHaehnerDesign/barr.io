@@ -7,6 +7,15 @@
         "admin",
         "user"
       ]
+    },
+    "account_type": {
+      "type": "string",
+      "description": "Whether this account is for personal or business use. Fixed at sign-up; personal and business are separate accounts.",
+      "enum": [
+        "personal",
+        "business"
+      ],
+      "default": "personal"
     }
   },
   "required": [

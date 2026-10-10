@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { Link, NavLink, Outlet } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { Map, ListOrdered, GitCompareArrows, User, LogOut, Home, SlidersHorizontal, Bot, PanelRightClose, PanelRightOpen, X, BarChart3, Bookmark, BookOpen, Database, Users, LayoutDashboard } from "lucide-react";
+import { Map, ListOrdered, GitCompareArrows, User, LogOut, Home, Building2, SlidersHorizontal, Bot, PanelRightClose, PanelRightOpen, X, BarChart3, Bookmark, BookOpen, Database, Users, LayoutDashboard } from "lucide-react";
 import AgentSidebar from "@/components/AgentSidebar";
-import ModeSwitcher from "@/components/ModeSwitcher";
+import { useActiveAudience } from "@/lib/useActiveAudience";
 
 const MAIN_NAV = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -31,6 +31,17 @@ const MOBILE_NAV = [
   { to: "/priorities", label: "Priorities", icon: SlidersHorizontal },
   { to: "/profile", label: "Profile", icon: User }
 ];
+
+function AccountPill() {
+  const { audience } = useActiveAudience();
+  const isB2b = audience === "b2b";
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs ${isB2b ? "border-amber-300 bg-amber-50 text-amber-800" : "border-emerald-300 bg-emerald-50 text-emerald-800"}`}>
+      {isB2b ? <Building2 className="h-3.5 w-3.5" /> : <Home className="h-3.5 w-3.5" />}
+      {isB2b ? "Business" : "Personal"} account
+    </span>
+  );
+}
 
 const sideLinkClass = ({ isActive }) =>
   `flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
@@ -60,7 +71,7 @@ export default function AppLayout() {
         </div>
 
         <div className="px-3 pt-3">
-          <ModeSwitcher />
+          <AccountPill />
         </div>
         <nav className="flex-1 space-y-1 p-3 overflow-y-auto">
           {MAIN_NAV.map((n) => (
@@ -99,7 +110,7 @@ export default function AppLayout() {
             <span className="tracking-tight">BarrioMatch</span>
           </Link>
           <div className="flex items-center gap-1">
-            <ModeSwitcher />
+            <AccountPill />
             <button onClick={() => setMobileAgent(true)} className="grid h-9 w-9 place-items-center rounded-md hover:bg-muted text-primary" title="Open agent">
               <Bot className="h-5 w-5" />
             </button>

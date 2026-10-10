@@ -26,6 +26,7 @@ import Glossary from '@/pages/Glossary';
 import DataSources from '@/pages/DataSources';
 import PersonaLibrary from '@/pages/PersonaLibrary';
 import AppLayout from '@/components/AppLayout';
+import OnboardingGuard from '@/components/OnboardingGuard';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -59,21 +60,22 @@ const AuthenticatedApp = () => {
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
-        <Route element={<AppLayout />}>
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/results" element={<Results />} />
+        <Route element={<OnboardingGuard />}>
           <Route path="/onboarding" element={<Onboarding />} />
-          <Route path="/agent" element={<Onboarding />} />
-          <Route path="/priorities" element={<PriorityBoard />} />
-          <Route path="/map" element={<MapView />} />
-          <Route path="/compare" element={<Compare />} />
-          <Route path="/area/:type/:id" element={<AreaDetail />} />
-          <Route path="/profile" element={<MyProfile />} />
-          <Route path="/data-insights" element={<DataInsights />} />
-          <Route path="/saved-comparisons" element={<SavedComparisons />} />
-          <Route path="/glossary" element={<Glossary />} />
-          <Route path="/data-sources" element={<DataSources />} />
-          <Route path="/persona-library" element={<PersonaLibrary />} />
+          <Route element={<AppLayout />}>
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/results" element={<Results />} />
+            <Route path="/priorities" element={<PriorityBoard />} />
+            <Route path="/map" element={<MapView />} />
+            <Route path="/compare" element={<Compare />} />
+            <Route path="/area/:type/:id" element={<AreaDetail />} />
+            <Route path="/profile" element={<MyProfile />} />
+            <Route path="/data-insights" element={<DataInsights />} />
+            <Route path="/saved-comparisons" element={<SavedComparisons />} />
+            <Route path="/glossary" element={<Glossary />} />
+            <Route path="/data-sources" element={<DataSources />} />
+            <Route path="/persona-library" element={<PersonaLibrary />} />
+          </Route>
         </Route>
       </Route>
       <Route path="*" element={<PageNotFound />} />
