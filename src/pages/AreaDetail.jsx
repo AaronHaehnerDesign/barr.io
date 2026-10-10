@@ -5,7 +5,7 @@ import "leaflet/dist/leaflet.css";
 import { useDistrict, useBarri } from "@/lib/useAreas";
 import { useProfile } from "@/lib/useProfile";
 import { CATEGORIES, CATEGORY_MAP, INDICATORS } from "@/lib/categories";
-import { matchScore, scoreColor, isStale, categoryScoresFromArea } from "@/lib/scoring";
+import { matchScore, scoreColor, categoryScoresFromArea } from "@/lib/scoring";
 
 // Fit the detail map tightly to the area's boundary so the polygon is centered
 // and fills the frame (no matter whether it is a district or a barri).
@@ -28,7 +28,16 @@ function FitBounds({ area }) {
 import ScoreBadge from "@/components/ScoreBadge";
 import ScoreBar from "@/components/ScoreBar";
 import CategoryIcon from "@/components/CategoryIcon";
-import { ArrowLeft, MapPin, Check, AlertTriangle, Database, Clock } from "lucide-react";
+import { ArrowLeft, MapPin, Check, AlertTriangle } from "lucide-react";
+
+function readingFor(score) {
+  if (score == null) return "";
+  if (score >= 8) return "High";
+  if (score >= 6) return "Good";
+  if (score >= 4.5) return "Average";
+  if (score >= 2.5) return "Low";
+  return "Very low";
+}
 
 export default function AreaDetail() {
   const { type, id } = useParams();
@@ -127,28 +136,32 @@ export default function AreaDetail() {
           <thead>
             <tr className="border-b bg-muted/50 text-left">
               <th className="p-3 font-medium">Indicator</th>
+              <th className="p-3 font-medium">What it means here</th>
               <th className="p-3 font-medium text-right">Value</th>
               <th className="p-3 font-medium text-center">Score</th>
-              <th className="p-3 font-medium">Source</th>
-              <th className="p-3 font-medium">Updated</th>
             </tr>
           </thead>
           <tbody>
             {(a.indicators || []).map((iv) => {
-              const stale = isStale(iv.last_updated);
               const ind = INDICATORS.find((x) => x.name === iv.indicator_name);
               return (
                 <tr key={iv.indicator_name} className="border-b last:border-0">
-                  <td className="p-3">
-                    <div className="flex items-center gap-2"><CategoryIcon categoryKey={iv.category_key} className="h-3.5 w-3.5 text-muted-foreground" />{iv.indicator_name}</div>
-                    <span className="ml-5.5 text-[11px] text-muted-foreground">{iv.unit}</span>
+                  <td className="p-3 align-top">
+                    <div className="flex items-center gap-2 font-medium"><CategoryIcon categoryKey={iv.category_key} className="h-3.5 w-3.5 text-muted-foreground" />{iv.indicator_name}</div>
+                    <span className="text-[11px] leading-snug text-muted-foreground">{ind?.description}</span>
                   </td>
-                  <td className="p-3 text-right tabular-nums">{iv.external ? <span className="text-xs text-muted-foreground">coming soon</span> : iv.raw_value}</td>
-                  <td className="p-3 text-center"><ScoreBadge score={iv.external ? null : iv.normalized_score} size="sm" /></td>
-                  <td className="p-3 text-[11px] text-muted-foreground"><span className="inline-flex items-center gap-1"><Database className="h-3 w-3" />{iv.source}</span></td>
-                  <td className="p-3 text-[11px]">
-                    <span className={`inline-flex items-center gap-1 ${stale ? "text-amber-600 font-medium" : "text-muted-foreground"}`}><Clock className="h-3 w-3" />{iv.last_updated}{stale && " · stale"}</span>
+                  <td className="p-3 align-top">
+                    {iv.external ? (
+                      <span className="text-xs text-muted-foreground">coming soon</span>
+                    ) : (
+                      <div>
+                        <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium text-white" style={{ backgroundColor: scoreColor(iv.normalized_score) }}>{readingFor(iv.normalized_score)}</span>
+                        <span className="block mt-1 text-[11px] text-muted-foreground">{ind?.direction === "negative" ? "lower raw value is better" : "higher raw value is better"}</span>
+                      </div>
+                    )}
                   </td>
+                  <td className="p-3 text-right align-top tabular-nums">{iv.external ? <span className="text-xs text-muted-foreground">—</span> : <span>{iv.raw_value} <span className="text-[11px] text-muted-foreground">{iv.unit}</span></span>}</td>
+                  <td className="p-3 text-center align-top"><ScoreBadge score={iv.external ? null : iv.normalized_score} size="sm" /></td>
                 </tr>
               );
             })}

@@ -22,6 +22,7 @@ import MyProfile from '@/pages/MyProfile';
 import DataInsights from '@/pages/DataInsights';
 import SavedComparisons from '@/pages/SavedComparisons';
 import Glossary from '@/pages/Glossary';
+import DataSources from '@/pages/DataSources';
 import PersonaLibrary from '@/pages/PersonaLibrary';
 import AppLayout from '@/components/AppLayout';
 
@@ -69,6 +70,7 @@ const AuthenticatedApp = () => {
           <Route path="/data-insights" element={<DataInsights />} />
           <Route path="/saved-comparisons" element={<SavedComparisons />} />
           <Route path="/glossary" element={<Glossary />} />
+          <Route path="/data-sources" element={<DataSources />} />
           <Route path="/persona-library" element={<PersonaLibrary />} />
         </Route>
       </Route>

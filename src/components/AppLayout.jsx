@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, NavLink, Outlet } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { Map, ListOrdered, GitCompareArrows, User, LogOut, Home, SlidersHorizontal, Bot, PanelRightClose, PanelRightOpen, X, BarChart3, Bookmark, BookOpen, Users } from "lucide-react";
+import { Map, ListOrdered, GitCompareArrows, User, LogOut, Home, SlidersHorizontal, Bot, PanelRightClose, PanelRightOpen, X, BarChart3, Bookmark, BookOpen, Database, Users } from "lucide-react";
 import AgentSidebar from "@/components/AgentSidebar";
 
 const NAV = [
@@ -13,6 +13,7 @@ const NAV = [
   { to: "/data-insights", label: "Insights", icon: BarChart3 },
   { to: "/saved-comparisons", label: "Saved", icon: Bookmark },
   { to: "/glossary", label: "Glossary", icon: BookOpen },
+  { to: "/data-sources", label: "Sources", icon: Database },
   { to: "/persona-library", label: "Personas", icon: Users }
 ];
 
