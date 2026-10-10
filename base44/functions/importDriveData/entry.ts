@@ -10,8 +10,10 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
 import * as XLSX from 'npm:xlsx@0.18.5';
 import {
-  norm, normCode, parseCsv, normalizeScores, mergeIndicator, recomputeCategoryScore, CONFIG,
+  norm, normCode, parseCsv, decodeBuffer, normalizeScores, mergeIndicator, recomputeCategoryScore,
+  CONFIG, PIP_CONFIG, pointInPolygon,
 } from "../../shared/driveImport.ts";
+import { largestExteriorRing } from "../../shared/geo.ts";
 
 const DEFAULT_FOLDER_ID = "125NPW7IkYVfKMrUg3RQYhbzWR49524Pu";
 
@@ -32,12 +34,11 @@ async function listFolder(auth: Record<string, string>, folderId: string): Promi
   return all;
 }
 
-async function downloadFile(auth: Record<string, string>, id: string, size: number): Promise<string> {
+async function downloadFile(auth: Record<string, string>, id: string, size: number): Promise<ArrayBuffer> {
   const headers = { ...auth };
-  // Full download for parseable tables.
-  const r = await fetch(`https://www.googleapis.com/drive/v3/files/${id}?alt=media`, { headers, signal: AbortSignal.timeout(60000) });
+  const r = await fetch(`https://www.googleapis.com/drive/v3/files/${id}?alt=media`, { headers, signal: AbortSignal.timeout(120000) });
   if (!r.ok) throw new Error("download failed " + r.status);
-  return await r.text();
+  return await r.arrayBuffer();
 }
 
 export default async function (req: Request): Promise<Response> {
@@ -73,7 +74,7 @@ export default async function (req: Request): Promise<Response> {
         let buf = await r.arrayBuffer();
         if (preferRange && r.status === 200) buf = buf.slice(0, 12000);
         if (isCsv) {
-          const rows = parseCsv(new TextDecoder("utf-8").decode(buf));
+          const rows = parseCsv(decodeBuffer(buf));
           entry.headers = rows[0] || [];
           entry.sampleRows = rows.slice(1, 4);
         } else if (isXlsx || isXls) {
@@ -84,7 +85,7 @@ export default async function (req: Request): Promise<Response> {
           entry.headers = rows[0] || [];
           entry.sampleRows = rows.slice(1, 4).map((r2: any) => r2.map(String));
         } else {
-          entry.head = new TextDecoder("utf-8").decode(buf.slice(0, 300));
+          entry.head = decodeBuffer(buf.slice(0, 300));
         }
       } catch (e: any) {
         entry.error = e?.message || String(e);
@@ -124,7 +125,7 @@ async function runImport(base44: any, auth: Record<string, string>, folderId: st
   do {
     const page = await base44.asServiceRole.entities.Barri.filter({}, {
       limit: 200, cursor,
-      fields: ["id", "name", "code", "district_code", "district_name", "population", "indicators", "category_scores"],
+      fields: ["id", "name", "code", "district_code", "district_name", "population", "indicators", "category_scores", "geometry"],
     });
     barris.push(...(page.items || []));
     cursor = page.has_more ? page.next_cursor : undefined;
@@ -157,7 +158,7 @@ async function runImport(base44: any, auth: Record<string, string>, folderId: st
     const file = allFiles.find(f => f.name.toLowerCase().includes(cfg.match.toLowerCase()));
     if (!file) { summary.push({ match: cfg.match, status: "file not found" }); continue; }
 
-    const text = await downloadFile(auth, file.id, Number(file.size || 0));
+    const text = decodeBuffer(await downloadFile(auth, file.id, Number(file.size || 0)));
     const rows = parseCsv(text);
     const headers = rows[0] || [];
     const baseMap = cfg.extract(rows, headers); // Map<normBarriName, base>
@@ -235,6 +236,92 @@ async function runImport(base44: any, auth: Record<string, string>, folderId: st
       barriRawRange: range(barriEntries.map(e => e.raw)),
       sample: sampleBarri ? { name: sampleBarri.name, raw: barriEntries.find(e => e.key === norm(sampleBarri.name))!.raw, score: barriScores[norm(sampleBarri.name)] } : null,
     });
+  }
+
+  // ======================= PHASE 2: point/barri-coded facility aggregation =======================
+  // Resolve each facility record to a barri via its barri code (fast path) or, when no
+  // code maps, via point-in-polygon against the barri boundaries.
+  // Barri boundaries for point-in-polygon assignment (GeoJSON [lon, lat] rings).
+  const barriPolys: { b: any; ring: number[][] }[] = [];
+  for (const b of barris) {
+    const ring = largestExteriorRing(b.geometry);
+    if (ring && ring.length >= 4) barriPolys.push({ b, ring: ring as number[][] });
+  }
+  const resolveBarri = (rec: any): any | null => {
+    if (rec.lat != null && rec.lon != null && !isNaN(rec.lat) && !isNaN(rec.lon)) {
+      for (const p of barriPolys) if (pointInPolygon(rec.lon, rec.lat, p.ring)) return p.b;
+    }
+    return null;
+  };
+
+  for (const cfg of PIP_CONFIG) {
+    if (onlyIndicator) {
+      const ok = cfg.match.includes(onlyIndicator) || cfg.indicators.some(i => i.name.toLowerCase().includes(onlyIndicator.toLowerCase()));
+      if (!ok) continue;
+    }
+    const file = allFiles.find(f => f.name.toLowerCase().startsWith(cfg.match.toLowerCase()));
+    if (!file) { summary.push({ match: cfg.match, phase: 2, status: "file not found" }); continue; }
+    const buf = await downloadFile(auth, file.id, Number(file.size || 0));
+    let records: any[] = [];
+    try {
+      if (cfg.format === "json") records = cfg.extractJson ? cfg.extractJson(JSON.parse(decodeBuffer(buf))) : [];
+      else { const pipRows = parseCsv(decodeBuffer(buf)); records = cfg.extract ? cfg.extract(pipRows, pipRows[0] || []) : []; }
+    } catch (e: any) { summary.push({ match: cfg.match, phase: 2, status: "parse error", error: e?.message }); continue; }
+
+    for (const ind of cfg.indicators) {
+      const barriCnt = new Map<string, number>();
+      let totalPoints = 0;
+      for (const rec of records) {
+        if (ind.kindFilter && !ind.kindFilter(rec)) continue;
+        const b = resolveBarri(rec);
+        if (!b) continue;
+        barriCnt.set(b.id, (barriCnt.get(b.id) || 0) + 1);
+        totalPoints++;
+      }
+      const barriEntries = barris.map(b => {
+        const c = barriCnt.get(b.id) || 0;
+        const pop = Number(b.population) || 0;
+        const raw: number | null = ind.perCapitaScale ? (pop > 0 ? (c / pop) * ind.perCapitaScale : null) : c;
+        return { key: b.id, raw };
+      });
+      const barriScores = normalizeScores(barriEntries, ind.direction as any);
+      const distEntries = districts.map(d => {
+        const dk = normCode(d.code || "");
+        const children = barrisByDistrict.get(dk) || [];
+        const cnt = children.reduce((s, c) => s + (barriCnt.get(c.id) || 0), 0);
+        const dpop = Number(d.population) || 0;
+        const raw: number | null = ind.perCapitaScale ? (dpop > 0 ? (cnt / dpop) * ind.perCapitaScale : null) : cnt;
+        return { key: normCode(d.code), raw };
+      });
+      const distScores = normalizeScores(distEntries, ind.direction as any);
+
+      const mkInd = (raw: number, score: number) => ({
+        indicator_name: ind.name, category_key: ind.category_key,
+        raw_value: Math.round(raw * 100) / 100, normalized_score: score, year: ind.year,
+        last_updated: ind.last_updated, source: ind.source, direction: ind.direction, unit: ind.unit, external: ind.external,
+      });
+      let bm = 0, dm = 0;
+      for (const b of barris) {
+        const score = barriScores[b.id];
+        if (score == null) continue;
+        bm++;
+        const raw = barriEntries.find(e => e.key === b.id)!.raw as number;
+        b._ind = mergeIndicator(b._ind, mkInd(raw, score));
+        b._cs = recomputeCategoryScore(b._cs, b._ind, ind.category_key);
+        b._changed = true;
+      }
+      for (const d of districts) {
+        const key = normCode(d.code);
+        const score = distScores[key];
+        if (score == null) continue;
+        dm++;
+        const raw = distEntries.find(e => e.key === key)!.raw as number;
+        d._ind = mergeIndicator(d._ind, mkInd(raw, score));
+        d._cs = recomputeCategoryScore(d._cs, d._ind, ind.category_key);
+        d._changed = true;
+      }
+      summary.push({ phase: 2, indicator: ind.name, category: ind.category_key, file: file.name, totalPoints, barrisMatched: bm, districts: dm });
+    }
   }
 
   // --- Persist once (accumulated) ---
