@@ -20,12 +20,12 @@ export default function LandingHero() {
 
   return (
     <motion.section initial={reduce ? false : "hidden"} animate="show" variants={group} className="overflow-x-clip pb-8 md:pb-12 lg:pb-[3.25rem]">
-      <div className="mx-auto max-w-[73.5rem] px-4 pt-12 md:px-10 md:pt-16 lg:px-14 lg:pt-20 flex flex-col items-center text-center">
+      <div className="mx-auto max-w-[73.5rem] px-4 pt-8 md:px-10 md:pt-16 lg:px-14 lg:pt-20 flex flex-col items-center text-center">
         <motion.div variants={item} className="flex items-center gap-2.5 rounded-[3rem] bg-muted px-3 py-1 text-[0.9375rem] font-bold leading-[1.33] tracking-[-0.015em]">
           <svg viewBox="0 0 21 20" fill="none" aria-hidden="true" className="h-5 w-5 flex-none"><path d={BADGE_PATH} fill="currentColor" /></svg>
           <div>73 barris <span className="font-normal">scored for you</span></div>
         </motion.div>
-        <motion.h1 variants={item} className="mt-3 max-w-[37rem] text-[2.75rem] md:text-[3.5rem] lg:text-[3.75rem] font-semibold leading-[1.2] tracking-[-0.06em]">
+        <motion.h1 variants={item} className="mt-3 w-full md:max-w-[37rem] text-[clamp(2rem,10.5vw,2.75rem)] md:text-[3.5rem] lg:text-[3.75rem] font-semibold leading-[1.1] md:leading-[1.2] tracking-[-0.05em] md:tracking-[-0.06em] [text-wrap:balance] break-words">
           Find the barrio that fits your life.
         </motion.h1>
         <motion.p variants={item} className="mt-3 text-base leading-normal tracking-[-0.01em] text-muted-foreground">
