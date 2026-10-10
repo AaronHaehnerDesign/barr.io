@@ -1,36 +1,12 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { MapContainer, TileLayer, Polygon, CircleMarker, Tooltip, useMap } from "react-leaflet";
-import "leaflet/dist/leaflet.css";
 import { useProfile } from "@/lib/useProfile";
 import { useDistricts, useBarris } from "@/lib/useAreas";
-import { matchScore, scoreColor, scoreLabel, categoryScoresFromArea } from "@/lib/scoring";
-import { CATEGORIES, PERSONA_FLIPS, categoriesForMode } from "@/lib/categories";
+import { matchScore, scoreColor, categoryScoresFromArea } from "@/lib/scoring";
+import { PERSONA_FLIPS, categoriesForMode } from "@/lib/categories";
 import { audienceConfigByKey } from "@/lib/audience";
 import { useActiveAudience } from "@/lib/useActiveAudience";
-
-// Fit the map tightly to the visible areas so there is no wasted space between
-// districts / barris.
-function FitBounds({ areas }) {
-  const map = useMap();
-  useEffect(() => {
-    const pts = [];
-    areas.forEach((a) => {
-      const ring = a.geometry?.coordinates?.[0];
-      if (ring && ring.length) ring.forEach(([lon, lat]) => pts.push([lat, lon]));
-      else if (a.centroid) pts.push([a.centroid.lat, a.centroid.lon]);
-    });
-    if (pts.length < 2) return;
-    const lats = pts.map((p) => p[0]);
-    const lons = pts.map((p) => p[1]);
-    const pad = 0.012;
-    map.fitBounds(
-      [[Math.min(...lats) - pad, Math.min(...lons) - pad], [Math.max(...lats) + pad, Math.max(...lons) + pad]],
-      { animate: false }
-    );
-  }, [areas, map]);
-  return null;
-}
+import BcnMap from "@/components/BcnMap";
 
 const WELCOME_HINT = "(start onboarding to see matches)";
 
@@ -41,7 +17,6 @@ export default function MapView() {
   const barris = useBarris();
   const [level, setLevel] = useState("district");
   const [metric, setMetric] = useState("match");
-  const [hovered, setHovered] = useState(null);
 
   const { audience } = useActiveAudience();
   const ac = audienceConfigByKey(audience);
@@ -54,62 +29,47 @@ export default function MapView() {
   }, [profile]);
   const flip = (profile?.persona && PERSONA_FLIPS[profile.persona]) || {};
 
-  const derived = useMemo(() => {
-    const map = new Map();
-    const areas = level === "district" ? (districts.data || []) : (barris.data || []);
-    areas.forEach((a) => map.set(a.id, categoryScoresFromArea(a)));
-    return map;
-  }, [level, districts.data, barris.data]);
+  const areas = level === "district" ? (districts.data || []) : (barris.data || []);
+  const loading = level === "district" ? districts.isLoading : barris.isLoading;
 
-  function catScore(area, key) {
-    const scores = derived.get(area.id) || {};
+  function catScore(scores, key) {
     let s = scores[key];
     if (s == null) return null;
     if (flip[key] === "negative") s = 11 - s;
     return Math.max(1, Math.min(10, Math.round(s * 10) / 10));
   }
-  function matchOf(area) {
+  function matchOf(scores) {
     const cs = {};
-    cats.forEach((c) => (cs[c.key] = catScore(area, c.key)));
+    cats.forEach((c) => (cs[c.key] = catScore(scores, c.key)));
     return matchScore(cs, weights);
-  }
-  function value10(area) {
-    if (metric === "match") return (matchOf(area) / 10) + 1;
-    return catScore(area, metric);
-  }
-
-  const loading = level === "district" ? districts.isLoading : barris.isLoading;
-  const areas = level === "district" ? (districts.data || []) : (barris.data || []);
-
-  function ringPositions(a) {
-    const ring = a.geometry?.coordinates?.[0];
-    if (!ring || ring.length < 4) return null;
-    return ring.map(([lon, lat]) => [lat, lon]);
-  }
-
-  function polyStyle(a) {
-    const v = value10(a);
-    const isHover = hovered === a.id;
-    return {
-      color: isHover ? "#0f172a" : "#ffffff",
-      weight: isHover ? 2.5 : 0.8,
-      fillColor: v == null ? "#cbd5e1" : scoreColor(v),
-      fillOpacity: isHover ? 0.92 : 0.68,
-    };
-  }
-
-  function hoverLabel(a) {
-    const ms = matchOf(a);
-    const matchLine = profile?.priorities?.length ? ` · ${ms}% match` : ` · ${WELCOME_HINT}`;
-    if (metric === "match" || !catScore(a, metric)) {
-      return `${a.name}${matchLine}`;
-    }
-    return `${a.name} · ${ms}% match · ${metricLabel(metric)}: ${catScore(a, metric).toFixed(1)}/10`;
   }
   function metricLabel(key) {
     const c = cats.find((x) => x.key === key);
     return c ? c.name : key;
   }
+
+  // Build the GeoJSON the map renders: one feature per area, with a precomputed
+  // fill color (1-10 scale) and a hover label. The fill layer reads ["get","color"].
+  // Numbered pins are the top-5 areas by match score, placed at their centroids.
+  const { geojson, pins } = useMemo(() => {
+    const features = [];
+    const rankable = [];
+    areas.forEach((a) => {
+      const scores = categoryScoresFromArea(a);
+      const ms = matchOf(scores);
+      const v = metric === "match" ? (ms / 10) + 1 : catScore(scores, metric);
+      const matchLine = profile?.priorities?.length ? `${ms}% match` : WELCOME_HINT;
+      let label = `${a.name} · ${matchLine}`;
+      if (metric !== "match" && v != null) label = `${a.name} · ${ms}% match · ${metricLabel(metric)}: ${v.toFixed(1)}/10`;
+      const props = { id: a.id, name: a.name, match: ms, color: v == null ? "#cbd5e1" : scoreColor(v), label };
+      if (a.geometry && a.geometry.coordinates) {
+        features.push({ type: "Feature", geometry: a.geometry, properties: props });
+      }
+      rankable.push({ id: a.id, rank: 0, lon: a.centroid?.lon, lat: a.centroid?.lat, name: a.name, match: ms });
+    });
+    const top = rankable.sort((a, b) => b.match - a.match).slice(0, 5).map((p, i) => ({ ...p, rank: i + 1 }));
+    return { geojson: { type: "FeatureCollection", features }, pins: top };
+  }, [areas, metric, weights, flip, profile, audience]);
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-4">
@@ -135,43 +95,12 @@ export default function MapView() {
       </div>
 
       <div className="rounded-xl border overflow-hidden h-[70vh]">
-        <MapContainer center={[41.395, 2.16]} zoom={12} className="h-full w-full" scrollWheelZoom>
-          <TileLayer
-            url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"
-            attribution='Tiles &copy; Esri'
-            maxZoom={19}
-          />
-          <FitBounds areas={areas} />
-          {!loading && areas.map((a) => {
-            const pos = ringPositions(a);
-            const style = polyStyle(a);
-            const label = hoverLabel(a);
-            const handlers = {
-              mouseover: () => setHovered(a.id),
-              mouseout: () => setHovered(null),
-              click: () => navigate(`/area/${level}/${a.id}`),
-            };
-            if (pos) {
-              return (
-                <Polygon key={a.id} positions={pos} pathOptions={style} eventHandlers={handlers}>
-                  <Tooltip sticky>{label}</Tooltip>
-                </Polygon>
-              );
-            }
-            // fallback for any area without a boundary yet
-            return (
-              <CircleMarker
-                key={a.id}
-                center={[a.centroid?.lat || 41.395, a.centroid?.lon || 2.16]}
-                radius={7}
-                pathOptions={{ ...style, weight: 0.5 }}
-                eventHandlers={handlers}
-              >
-                <Tooltip>{label}</Tooltip>
-              </CircleMarker>
-            );
-          })}
-        </MapContainer>
+        <BcnMap
+          geojson={geojson}
+          pins={pins}
+          audience={audience}
+          onAreaClick={(id) => navigate(`/area/${level}/${id}`)}
+        />
       </div>
       {loading && <p className="text-center text-sm text-muted-foreground mt-3">Loading map data…</p>}
       {!profile?.priorities?.length && !loading && (
