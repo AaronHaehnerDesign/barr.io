@@ -3,6 +3,13 @@
 // their confirmed profile (UserProfile), so every turn builds on everything the
 // user has said before. The proposed priority profile is the accumulation of all
 // stated values, priorities and data points — never a fresh restart.
+//
+// The agent can also answer factual questions about a specific district or barri
+// using the indicator data already stored in the app. When the user mentions an
+// area by name, we load that area's stored indicators and feed them to the LLM as
+// a strict DATA SECTION; the model must answer from that section only, never invent
+// a number, and be honest that some "count" indicators are smoothed/normalized
+// values rather than exact tallies.
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
 
 const WELCOME = {
@@ -10,7 +17,93 @@ const WELCOME = {
   content: "Hi! I'm your BarrioMatch agent. Tell me what you're looking for — a home for you and your household, or a location for your business. Describe your situation, budget, and what matters to you, and I'll guide you from there. You can type or tap the mic to speak.",
 };
 
-export default async function (req) {
+// Indicator name -> unit. Mirrors src/lib/categories.js so the agent can quote
+// values with their unit. Keep in sync when indicators change.
+const INDICATOR_UNITS: Record<string, string> = {
+  "Average cadastral value": "€/m²",
+  "Home sales volume": "sales/1000 inh.",
+  "Average home size": "m²",
+  "Rent burden": "index",
+  "Hospitals (within 1 km)": "count",
+  "Primary care centres (CAP)": "count",
+  "Pharmacies per 10k inh.": "per 10k",
+  "Primary & secondary schools": "count",
+  "Nurseries (escoles bressol)": "count",
+  "International schools": "count",
+  "Metro / FGC / Renfe stations": "count",
+  "Bus stops": "count",
+  "Bike lanes": "km",
+  "Pedestrian / 30 km/h streets": "%",
+  "Parking zone cost (AREA)": "€/day",
+  "Underground car parks": "count",
+  "Low emission zone (ZBE)": "1/0",
+  "EV chargers": "count",
+  "Perceived safety (survey)": "0-10",
+  "Traffic accidents": "per 10k inh.",
+  "Police stations": "count",
+  "Crime by area": "index",
+  "Urban planning projects": "count",
+  "Active public works": "count",
+  "Net migration balance": "per 1k inh.",
+  "Disposable household income": "€/year",
+  "Inequality (Gini)": "0-1",
+  "Households with children": "%",
+  "Density": "inh./ha",
+  "Employment by area": "index",
+  "Ground-floor shops & businesses": "count",
+  "Municipal markets": "count",
+  "Terraces & bars": "count",
+  "Libraries & sports centres": "count",
+  "Beaches access": "1/0",
+  "Noise level": "dB",
+  "Air quality NO2": "µg/m³",
+  "PM2.5": "µg/m³",
+  "Street & park trees": "per ha",
+  "Parks & green area": "m²/inh.",
+  "Playgrounds": "count",
+  "Open school playgrounds": "count",
+  "Dog areas": "count",
+  "Elderly care homes": "count",
+  "Noise complaints": "per 1k inh.",
+  "Dirt / cleanliness complaints": "per 1k inh.",
+  "Pavement complaints": "per 1k inh.",
+  "Tourist flats density": "per 1k inh.",
+  "Tourist hotspots": "index"
+};
+
+function normalize(s: string): string {
+  return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+}
+
+function stripArticle(s: string): string {
+  return s.replace(/^(el|la|els|les|l')\s+/, '').trim();
+}
+
+function nameMatches(input: string, name: string): boolean {
+  const n = normalize(name);
+  if (n.length < 4) return false;
+  const variants = [n, stripArticle(n)];
+  return variants.some(v => v.length >= 4 && input.includes(v));
+}
+
+function areaToBlock(rec: any, type: string): string {
+  const lines: string[] = [];
+  const hd = type === 'district'
+    ? `${rec.name} (district)`
+    : `${rec.name} (barri in ${rec.district_name || '—'})`;
+  lines.push(`## ${hd}${rec.population ? `, population ~${rec.population}` : ''}`);
+  for (const ind of (rec.indicators || [])) {
+    const unit = INDICATOR_UNITS[ind.indicator_name] || '';
+    if (ind.external || ind.raw_value == null) {
+      lines.push(`- ${ind.indicator_name}: [no value yet — external source, coming soon]`);
+    } else {
+      lines.push(`- ${ind.indicator_name}: ${ind.raw_value}${unit ? ' ' + unit : ''} (year ${ind.year ?? '?'})`);
+    }
+  }
+  return lines.join('\n');
+}
+
+export default async function (req: any) {
   try {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
@@ -44,6 +137,46 @@ export default async function (req) {
       summary: existingProfile.raw_input_text || "",
     } : null;
 
+    // --- Detect whether the user is asking about a specific district/barri ---
+    // We load area names first (light), then fetch full records only for the
+    // areas the user mentioned. This keeps data questions grounded in the app's
+    // real stored indicators without loading every barri's data on every turn.
+    let dataSection = "";
+    const nInput = normalize(input || '');
+    if (nInput.length) {
+      const districtNames = await base44.entities.District.filter(
+        {}, { limit: 50, sort: 'code', fields: ['name', 'code'] }
+      );
+      const barriNames = await base44.entities.Barri.filter(
+        {}, { limit: 200, sort: 'code', fields: ['name', 'code', 'district_name'] }
+      );
+
+      type Match = { type: string; id: string };
+      const matches: Match[] = [];
+      for (const d of (districtNames.items || [])) {
+        if (nameMatches(nInput, d.name)) matches.push({ type: 'district', id: d.id });
+      }
+      for (const b of (barriNames.items || [])) {
+        if (nameMatches(nInput, b.name)) matches.push({ type: 'barri', id: b.id });
+      }
+      const seen = new Set<string>();
+      const unique = matches.filter(m => !seen.has(m.id) && (seen.add(m.id), true));
+
+      const blocks: string[] = [];
+      for (const m of unique) {
+        let rec: any = null;
+        try {
+          rec = m.type === 'district'
+            ? await base44.entities.District.get(m.id)
+            : await base44.entities.Barri.get(m.id);
+        } catch { /* skip unreadable area */ }
+        if (rec) blocks.push(areaToBlock(rec, m.type));
+      }
+      if (blocks.length) {
+        dataSection = "DATA SECTION (use ONLY this to answer factual questions about the area; do not invent):\n" + blocks.join('\n');
+      }
+    }
+
     const systemPrompt = `You are BarrioMatch, a friendly expert on Barcelona's neighbourhoods (10 districts and 73 barris).
 You help the user build a priority profile so the app can rank areas for them.
 
@@ -53,6 +186,19 @@ ${accumulated ? `CURRENT ACCUMULATED PROFILE (treat as already-collected truth, 
 ${JSON.stringify(accumulated)}
 
 When you output a new profile, carry forward every prior priority and hard filter that the user has not contradicted, merge in any new preferences from this turn, and re-rank/re-weight the combined set.` : ``}
+
+ANSWERING DATA QUESTIONS:
+The user may ask factual questions about a specific district or barri (for example "how many international schools does Sant Martí have?", "what's the air quality in Eixample?", "is the Gràcia area noisy?").
+${dataSection ? `${dataSection}
+
+Rules for data questions:
+- Answer using ONLY the DATA SECTION above. Quote the stored raw value WITH its unit and year.
+- These values are indicator figures sourced from Open Data BCN. Many are normalized or smoothed (e.g. per capita, within-1-km counts) — they are NOT always exact integer counts. If the user asks "how many" and the value is not a whole number, tell them it's an approximate indicator value (e.g. ≈2.6, averaged/smoothed around the area), not an exact tally. Do not round it up to a whole number and present it as a count.
+- Never convert a normalized score into a count. Never invent, estimate, or look up a number that isn't in the DATA SECTION.
+- If the indicator is marked "[no value yet — external source, coming soon]", say we don't have that data yet and it's coming soon.
+- If the user asks about an indicator or area not present in the DATA SECTION, say we don't currently have that data, and invite them to ask about another area.
+- Answer in the user's language. Keep it brief and warm.
+- A data question does NOT change the user's profile — return the current accumulated profile unchanged.` : `We do not have an area-specific DATA SECTION for this turn. If the user is asking a factual question about a neighbourhood, politely ask which district or barri they mean (e.g. Sant Martí, Eixample, Gràcia, el Raval). Do not guess any numbers.`}
 
 STEP 0 — Detect audience:
 From the first message, decide if the user is looking for a place for themselves / their household (B2C, audience "b2c") or for a business / commercial location (B2B, audience "b2b"). If it is genuinely unclear, ask ONE short disambiguating question before proceeding. Do not ask it if the answer is already obvious.
@@ -70,7 +216,7 @@ prices, healthcare, education, transport, car, safety, development, income, dail
 
 Output STRICT JSON:
 {
-  "reply": "what you say this turn (warm, brief, under ~60 words). If you still need info, ask the next 1-2 questions here. If the user changed a priority or filter this turn, start with a one-sentence confirmation of exactly what changed.",
+  "reply": "what you say this turn (warm, brief, under ~80 words). If answering a data question, give the grounded answer here. If you still need profile info, ask the next 1-2 questions here. If the user changed a priority or filter this turn, start with a one-sentence confirmation of exactly what changed.",
   "ready": boolean,
   "audience": "b2c" | "b2b",
   "profile": {
@@ -84,7 +230,7 @@ Output STRICT JSON:
 
 Rules:
 - Always respond in the same language as the user (default English).
-- ALWAYS return the complete profile object on EVERY turn — not only when ready. It is the full accumulated state: merge the user's new input into the CURRENT ACCUMULATED PROFILE. Carry forward every prior priority and hard filter the user has not contradicted; only drop or change one when the user explicitly asks.
+- ALWAYS return the complete profile object on EVERY turn — not only when ready. It is the full accumulated state: merge the user's new input into the CURRENT ACCUMULATED PROFILE. Carry forward every prior priority and hard filter the user has not contradicted; only drop or change one when the user explicitly asks. For a pure data question, return the profile unchanged.
 - The user can EDIT their priorities at any time. Handle these requests: "add X" (insert the category with a sensible default weight), "remove/drop X" (delete it), "make X less/more important", "lower X", "raise X", "X matters more/less" (adjust the weight up or down in steps of ~15), and explicit reordering ("X above Y"). After ANY edit, re-assign rank 1..N by descending weight.
 - Only set ready=true once you know the audience, the persona, and at least 5 ranked priorities. Edits can happen before or after ready.
 - Hard filters are optional; only include ones the user explicitly cares about. value:false = must NOT.
