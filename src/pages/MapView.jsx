@@ -77,8 +77,8 @@ export default function MapView() {
         <h1 className="text-lg font-semibold">{ac.mapTitle}</h1>
         <div className="ml-auto flex items-center gap-2">
           <div className="inline-flex rounded-lg border p-0.5 bg-muted">
+            <button onClick={() => setLevel("barri")} className={`px-3 py-1 text-xs rounded-md ${level === "barri" ? "bg-background shadow-sm font-medium" : "text-muted-foreground"}`}>Barrio</button>
             <button onClick={() => setLevel("district")} className={`px-3 py-1 text-xs rounded-md ${level === "district" ? "bg-background shadow-sm font-medium" : "text-muted-foreground"}`}>Districts</button>
-            <button onClick={() => setLevel("barri")} className={`px-3 py-1 text-xs rounded-md ${level === "barri" ? "bg-background shadow-sm font-medium" : "text-muted-foreground"}`}>Barris</button>
           </div>
           <select value={metric} onChange={(e) => setMetric(e.target.value)} className="rounded-lg border bg-background px-2 py-1.5 text-xs">
             <option value="match">{ac.mapMetricLabel}</option>

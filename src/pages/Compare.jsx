@@ -145,8 +145,8 @@ export default function Compare() {
       <div className="flex flex-wrap items-center gap-3 mb-4">
         <h1 className="text-lg font-semibold">Compare areas</h1>
         <div className="ml-auto inline-flex rounded-lg border p-0.5 bg-muted">
+          <button onClick={() => switchType("barri")} className={`px-3 py-1 text-xs rounded-md ${type === "barri" ? "bg-background shadow-sm font-medium" : "text-muted-foreground"}`}>Barrio</button>
           <button onClick={() => switchType("district")} className={`px-3 py-1 text-xs rounded-md ${type === "district" ? "bg-background shadow-sm font-medium" : "text-muted-foreground"}`}>Districts</button>
-          <button onClick={() => switchType("barri")} className={`px-3 py-1 text-xs rounded-md ${type === "barri" ? "bg-background shadow-sm font-medium" : "text-muted-foreground"}`}>Barris</button>
         </div>
       </div>
 

@@ -37,7 +37,6 @@ export default function LandingNav() {
       <header className="relative z-[60] px-4 py-4 md:px-10 lg:px-14">
         <div className="flex items-center justify-between">
           <Link to="/" aria-label="barr.io, home" className={`flex items-center gap-2 font-semibold tracking-tight ${open ? "text-background" : ""}`}>
-            <span className="grid h-7 w-7 place-items-center rounded-lg bg-emerald-600 text-white"><Map className="h-4 w-4" /></span>
             barr.io
           </Link>
           <nav aria-label="Primary" className="hidden lg:flex items-center gap-5">

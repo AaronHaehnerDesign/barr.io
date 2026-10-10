@@ -1,7 +1,7 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useProfile } from "@/lib/useProfile";
-import { useDistricts } from "@/lib/useAreas";
+import { useDistricts, useBarris } from "@/lib/useAreas";
 import { CATEGORIES, CATEGORY_MAP, PERSONA_FLIPS, categoriesForMode } from "@/lib/categories";
 import { categoryScoresFromArea, matchScore, areaSummary, scoreColor } from "@/lib/scoring";
 import { areaIntro } from "@/lib/areaIntro";
@@ -10,30 +10,34 @@ import CategoryIcon from "@/components/CategoryIcon";
 import { Button } from "@/components/ui/button";
 import { LayoutDashboard, Sparkles, ArrowRight, Map as MapIcon, GitCompareArrows, SlidersHorizontal, ChevronRight, BarChart3, Users } from "lucide-react";
 
+function rankAreas(data, profile) {
+  if (!data) return [];
+  const w = {};
+  (profile?.priorities || []).forEach((p) => (w[p.category_key] = p.weight));
+  const flip = (profile?.persona && PERSONA_FLIPS[profile.persona]) || {};
+  const cats = categoriesForMode(profile?.audience || "b2c");
+  return data
+    .map((a) => {
+      const base = categoryScoresFromArea(a);
+      const cs = {};
+      cats.forEach((c) => {
+        let s = base[c.key];
+        if (s == null) { cs[c.key] = null; return; }
+        if (flip[c.key] === "negative") s = 11 - s;
+        cs[c.key] = Math.max(1, Math.min(10, Math.round(s * 10) / 10));
+      });
+      return { ...a, _scores: cs, match_score: matchScore(cs, w) };
+    })
+    .sort((a, b) => b.match_score - a.match_score);
+}
+
 export default function Dashboard() {
   const { data: profile } = useProfile();
   const districts = useDistricts();
-
-  const ranked = useMemo(() => {
-    if (!districts.data) return [];
-    const w = {};
-    (profile?.priorities || []).forEach((p) => (w[p.category_key] = p.weight));
-    const flip = (profile?.persona && PERSONA_FLIPS[profile.persona]) || {};
-    const cats = categoriesForMode(profile?.audience || "b2c");
-    return districts.data
-      .map((a) => {
-        const base = categoryScoresFromArea(a);
-        const cs = {};
-        cats.forEach((c) => {
-          let s = base[c.key];
-          if (s == null) { cs[c.key] = null; return; }
-          if (flip[c.key] === "negative") s = 11 - s;
-          cs[c.key] = Math.max(1, Math.min(10, Math.round(s * 10) / 10));
-        });
-        return { ...a, _scores: cs, match_score: matchScore(cs, w) };
-      })
-      .sort((a, b) => b.match_score - a.match_score);
-  }, [districts.data, profile]);
+  const barris = useBarris();
+  const [bestType, setBestType] = useState("barri");
+  const ranked = useMemo(() => rankAreas(districts.data, profile), [districts.data, profile]);
+  const rankedBarris = useMemo(() => rankAreas(barris.data, profile), [barris.data, profile]);
 
   if (!profile || !profile.priorities?.length) {
     return (
@@ -46,7 +50,7 @@ export default function Dashboard() {
     );
   }
 
-  const best = ranked[0];
+  const best = (bestType === "barri" ? rankedBarris : ranked)[0];
   const top3 = ranked.slice(0, 3);
   const topPriorities = [...(profile.priorities || [])].sort((a, b) => b.weight - a.weight).slice(0, 5);
 
@@ -59,14 +63,20 @@ export default function Dashboard() {
 
       <div className="grid gap-4 md:grid-cols-3">
         <div className="md:col-span-2 rounded-xl border bg-card p-5 shadow-sm ring-1 ring-emerald-200">
-          <span className="text-xs font-semibold text-emerald-700 uppercase">Your best match</span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-emerald-700 uppercase">Your best match</span>
+            <div className="ml-auto flex rounded-lg border p-0.5 bg-muted">
+              <button onClick={() => setBestType("barri")} className={`px-3 py-1 text-xs rounded-md ${bestType === "barri" ? "bg-background shadow-sm font-medium" : "text-muted-foreground"}`}>Barrio</button>
+              <button onClick={() => setBestType("district")} className={`px-3 py-1 text-xs rounded-md ${bestType === "district" ? "bg-background shadow-sm font-medium" : "text-muted-foreground"}`}>District</button>
+            </div>
+          </div>
           {best ? (
             <>
               <div className="mt-1 flex items-center gap-3">
-                <Link to={`/area/district/${best.id}`} className="text-xl font-bold hover:underline">{best.name}</Link>
+                <Link to={`/area/${bestType}/${best.id}`} className="text-xl font-bold hover:underline">{best.name}</Link>
                 <div className="ml-auto text-3xl font-bold" style={{ color: scoreColor((best.match_score / 10) + 1) }}>{best.match_score}%</div>
               </div>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{areaIntro(best, "district")}</p>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{areaIntro(best, bestType)}</p>
               <Button asChild size="sm" className="mt-3"><Link to="/results">See all results <ArrowRight className="h-3.5 w-3.5" /></Link></Button>
             </>
           ) : (

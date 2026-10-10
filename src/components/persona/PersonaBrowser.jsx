@@ -82,8 +82,8 @@ export default function PersonaBrowser() {
         <div className="flex items-center gap-2 mb-1">
           <h2 className="font-semibold">{selected.name}</h2>
           <span className="ml-auto inline-flex rounded-lg border p-0.5 bg-muted">
+            <button onClick={() => setLevel("barri")} className={`px-3 py-1 text-xs rounded-md ${level === "barri" ? "bg-background shadow-sm font-medium" : "text-muted-foreground"}`}>Barrio</button>
             <button onClick={() => setLevel("district")} className={`px-3 py-1 text-xs rounded-md ${level === "district" ? "bg-background shadow-sm font-medium" : "text-muted-foreground"}`}><Layers className="inline h-3.5 w-3.5 mr-1" />Districts</button>
-            <button onClick={() => setLevel("barri")} className={`px-3 py-1 text-xs rounded-md ${level === "barri" ? "bg-background shadow-sm font-medium" : "text-muted-foreground"}`}>Barris</button>
           </span>
         </div>
         <p className="text-sm text-muted-foreground mb-3">{selected.description}</p>

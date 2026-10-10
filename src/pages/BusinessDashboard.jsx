@@ -110,8 +110,8 @@ export default function BusinessDashboard() {
         <div className="flex items-center gap-3 mb-2">
           <h2 className="font-semibold">Top business locations</h2>
           <div className="ml-auto inline-flex rounded-lg border p-0.5 bg-muted">
+            <button onClick={() => setType("barri")} className={`px-3 py-1 text-xs rounded-md ${type === "barri" ? "bg-background shadow-sm font-medium" : "text-muted-foreground"}`}>Barrio</button>
             <button onClick={() => setType("district")} className={`px-3 py-1 text-xs rounded-md ${type === "district" ? "bg-background shadow-sm font-medium" : "text-muted-foreground"}`}>Districts</button>
-            <button onClick={() => setType("barri")} className={`px-3 py-1 text-xs rounded-md ${type === "barri" ? "bg-background shadow-sm font-medium" : "text-muted-foreground"}`}>Barris</button>
           </div>
         </div>
         <div className="space-y-2">

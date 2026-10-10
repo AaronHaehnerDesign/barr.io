@@ -81,9 +81,6 @@ export default function AppLayout() {
       <aside className="hidden md:flex md:w-60 md:flex-col md:fixed md:inset-y-0 border-r bg-background">
         <div className="flex items-center gap-2 h-14 px-4 border-b">
           <Link to="/dashboard" className="flex items-center gap-2 font-semibold">
-            <span className="grid h-7 w-7 place-items-center rounded-lg bg-primary text-primary-foreground">
-              <Home className="h-4 w-4" />
-            </span>
             <span className="tracking-tight">barr.io</span>
           </Link>
         </div>
@@ -123,9 +120,6 @@ export default function AppLayout() {
       <header className="md:hidden sticky top-0 z-40 border-b bg-background/90 backdrop-blur">
         <div className="flex items-center justify-between h-14 px-4">
           <Link to="/dashboard" className="flex items-center gap-2 font-semibold">
-            <span className="grid h-7 w-7 place-items-center rounded-lg bg-primary text-primary-foreground">
-              <Home className="h-4 w-4" />
-            </span>
             <span className="tracking-tight">barr.io</span>
           </Link>
           <div className="flex items-center gap-1">

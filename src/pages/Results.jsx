@@ -78,8 +78,8 @@ export default function Results() {
         <div className="flex items-center gap-2">
           <Button asChild variant="ghost" size="sm" className="text-muted-foreground"><Link to="/priorities">Adjust priorities</Link></Button>
           <div className="inline-flex rounded-lg border p-0.5 bg-muted">
+            <button onClick={() => setLevel("barri")} className={`px-3 py-1 text-xs rounded-md ${level === "barri" ? "bg-background shadow-sm font-medium" : "text-muted-foreground"}`}>Barrio</button>
             <button onClick={() => setLevel("district")} className={`px-3 py-1 text-xs rounded-md ${level === "district" ? "bg-background shadow-sm font-medium" : "text-muted-foreground"}`}><Layers className="inline h-3.5 w-3.5 mr-1" />Districts</button>
-            <button onClick={() => setLevel("barri")} className={`px-3 py-1 text-xs rounded-md ${level === "barri" ? "bg-background shadow-sm font-medium" : "text-muted-foreground"}`}>Barris</button>
           </div>
         </div>
       </div>
