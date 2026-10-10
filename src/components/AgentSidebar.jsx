@@ -2,9 +2,10 @@ import { useState, useRef, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useProfile, useSaveProfile } from "@/lib/useProfile";
 import { useConversation } from "@/lib/useConversation";
-import VoiceRecorder from "@/components/VoiceRecorder";
-import { CATEGORIES } from "@/lib/categories";
+import { useActiveAudience } from "@/lib/useActiveAudience";
+import { categoriesForMode } from "@/lib/categories";
 import CategoryIcon from "@/components/CategoryIcon";
+import VoiceRecorder from "@/components/VoiceRecorder";
 import { Button } from "@/components/ui/button";
 import { Send, Sparkles, Loader2 } from "lucide-react";
 
@@ -14,9 +15,11 @@ const WELCOME = { role: "assistant", content: "Hi! I'm your BarrioMatch agent. T
 // detects a ready profile it saves it immediately (confirmed:false) so any page
 // reading the profile — Results, Compare, Map — updates live as you chat.
 export default function AgentSidebar({ className = "" }) {
+  const { audience } = useActiveAudience();
   const { data: profile } = useProfile();
   const { data: convo, refetch: refetchConvo } = useConversation();
   const saveProfile = useSaveProfile();
+  const cats = categoriesForMode(audience);
   const [pending, setPending] = useState([]); // optimistic messages not yet persisted
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -39,7 +42,7 @@ export default function AgentSidebar({ className = "" }) {
     setPending((p) => [...p, { role: "user", content }]);
     setLoading(true);
     try {
-      const res = await base44.functions.invoke("agent", { input: content });
+      const res = await base44.functions.invoke("agent", { input: content, audience });
       const data = res?.data || {};
       // the server persisted the user msg + reply; refetch so history is authoritative
       await refetchConvo();
@@ -49,7 +52,6 @@ export default function AgentSidebar({ className = "" }) {
         // Save without navigating away — Results/Compare/Map/PriorityBoard recompute live.
         // The agent always returns the full accumulated profile, so edits persist on every turn.
         await saveProfile.mutateAsync({
-          audience: data.profile.audience || data.audience || "b2c",
           persona: data.profile.persona,
           priorities: data.profile.priorities || [],
           hard_filters: data.profile.hard_filters || [],
@@ -90,7 +92,7 @@ export default function AgentSidebar({ className = "" }) {
             <p className="mb-2 text-xs font-medium text-muted-foreground">Detected priorities</p>
             <div className="flex flex-wrap gap-1.5">
               {draft.priorities.slice().sort((a, b) => a.rank - b.rank).map((p) => {
-                const cat = CATEGORIES.find((c) => c.key === p.category_key);
+                const cat = cats.find((c) => c.key === p.category_key);
                 return cat ? (
                   <span key={p.category_key} className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs">
                     <CategoryIcon categoryKey={p.category_key} className="h-3 w-3" />

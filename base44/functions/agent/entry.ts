@@ -1,8 +1,9 @@
 // BarrioMatch onboarding agent.
 // Remembers the user's full conversation (persisted in AgentConversation) and
 // their confirmed profile (UserProfile), so every turn builds on everything the
-// user has said before. The proposed priority profile is the accumulation of all
-// stated values, priorities and data points — never a fresh restart.
+// user has said before. Personal and Business keep SEPARATE conversations and
+// profiles: the active mode is passed in (`audience`), and the agent only ever
+// loads/builds the profile and conversation for that mode.
 //
 // The agent can also answer factual questions about a specific district or barri
 // using the indicator data already stored in the app. When the user mentions an
@@ -16,6 +17,14 @@ const WELCOME = {
   role: "assistant",
   content: "Hi! I'm your BarrioMatch agent. Tell me what you're looking for — a home for you and your household, or a location for your business. Describe your situation, budget, and what matters to you, and I'll guide you from there. You can type or tap the mic to speak.",
 };
+
+// Base categories (Personal + Business), plus Business-only categories.
+// Mirrors src/lib/categories.js so the agent lists the right categories per mode.
+const BASE_CATS = ["prices","healthcare","education","transport","car","safety","development","income","dailylife","environment","families","complaints","tourism"];
+const B2B_ONLY_CATS = ["commercial","customeraccess","operations"];
+function catsForMode(audience: string): string[] {
+  return audience === "b2b" ? [...BASE_CATS, ...B2B_ONLY_CATS] : BASE_CATS;
+}
 
 // Indicator name -> unit. Mirrors src/lib/categories.js so the agent can quote
 // values with their unit. Keep in sync when indicators change.
@@ -68,7 +77,16 @@ const INDICATOR_UNITS: Record<string, string> = {
   "Dirt / cleanliness complaints": "per 1k inh.",
   "Pavement complaints": "per 1k inh.",
   "Tourist flats density": "per 1k inh.",
-  "Tourist hotspots": "index"
+  "Tourist hotspots": "index",
+  "Commercial premises availability": "count",
+  "Average commercial rent": "€/m²/month",
+  "Storefront vacancy rate": "%",
+  "Pedestrian footfall": "index",
+  "Storefront visibility": "index",
+  "Tourist/customer flow": "index",
+  "Staff commute time": "min",
+  "Loading zones": "count",
+  "Business parking": "count"
 };
 
 function normalize(s: string): string {
@@ -111,36 +129,32 @@ export default async function (req: any) {
 
     const body = await req.json().catch(() => ({}));
     const { input } = body;
+    const audience = body.audience === "b2b" ? "b2b" : "b2c";
+    const modeCats = catsForMode(audience);
 
-    // --- Load persisted conversation (server is source of truth) ---
-    // Plain client (acts as the calling user) so records are user-owned and the
-    // frontend's useConversation reads the same conversation — the agent resumes
-    // the same thread every turn instead of starting fresh.
+    // --- Load persisted conversation for THIS mode (server is source of truth) ---
     const convoPage = await base44.entities.AgentConversation.filter(
-      {}, { limit: 1, sort: '-created_date' }
+      { audience }, { limit: 1, sort: '-created_date' }
     );
     let conversation = (convoPage.items || [])[0] || null;
 
-    // --- Load the user's confirmed profile so we can build on it ---
+    // --- Load the user's confirmed profile for THIS mode so we can build on it ---
     const profPage = await base44.entities.UserProfile.filter(
-      {}, { limit: 1, sort: '-created_date' }
+      { audience }, { limit: 1, sort: '-created_date' }
     );
     const existingProfile = (profPage.items || [])[0] || null;
 
     const priorMessages = conversation?.messages?.length ? conversation.messages : [WELCOME];
 
     const accumulated = existingProfile ? {
-      audience: existingProfile.audience,
+      audience: existingProfile.audience || audience,
       persona: existingProfile.persona,
       priorities: existingProfile.priorities || [],
       hard_filters: existingProfile.hard_filters || [],
       summary: existingProfile.raw_input_text || "",
-    } : null;
+    } : { audience };
 
     // --- Detect whether the user is asking about a specific district/barri ---
-    // We load area names first (light), then fetch full records only for the
-    // areas the user mentioned. This keeps data questions grounded in the app's
-    // real stored indicators without loading every barri's data on every turn.
     let dataSection = "";
     const nInput = normalize(input || '');
     if (nInput.length) {
@@ -177,18 +191,22 @@ export default async function (req: any) {
       }
     }
 
+    const personaOptions = audience === "b2b"
+      ? '"Business founder", "Investor"'
+      : '"Remote worker", "Family", "Retiree", "Relocating professional"';
+
     const systemPrompt = `You are BarrioMatch, a friendly expert on Barcelona's neighbourhoods (10 districts and 73 barris).
 You help the user build a priority profile so the app can rank areas for them.
 
-ACCUMULATE, DON'T RESTART. The user may already have a profile from a previous conversation. The proposed match must be the accumulation of ALL previously stated values, priorities and data points. Refine and extend what you already know; only discard a previous priority if the user explicitly changes their mind. Never ask again for information the user has already given.
+MODE: The user has already chosen ${audience === "b2b" ? "Business" : "Personal"} mode (audience "${audience}"). Do NOT ask whether they are personal or business — treat this as decided. ${audience === "b2b" ? "They are choosing a location for a business." : "They are choosing a home for themselves or their household."}
 
-${accumulated ? `CURRENT ACCUMULATED PROFILE (treat as already-collected truth, build on it):
+ACCUMULATE, DON'T RESTART. The user may already have a ${audience === "b2b" ? "Business" : "Personal"} profile from a previous conversation. The proposed match must be the accumulation of ALL previously stated values, priorities and data points. Refine and extend what you already know; only discard a previous priority if the user explicitly changes their mind. Never ask again for information the user has already given.
+
+CURRENT ACCUMULATED PROFILE (treat as already-collected truth, build on it):
 ${JSON.stringify(accumulated)}
 
-When you output a new profile, carry forward every prior priority and hard filter that the user has not contradicted, merge in any new preferences from this turn, and re-rank/re-weight the combined set.` : ``}
+When you output a new profile, carry forward every prior priority and hard filter that the user has not contradicted, merge in any new preferences from this turn, and re-rank/re-weight the combined set.
 
-ANSWERING DATA QUESTIONS:
-The user may ask factual questions about a specific district or barri (for example "how many international schools does Sant Martí have?", "what's the air quality in Eixample?", "is the Gràcia area noisy?").
 ${dataSection ? `${dataSection}
 
 Rules for data questions:
@@ -200,28 +218,24 @@ Rules for data questions:
 - Answer in the user's language. Keep it brief and warm.
 - A data question does NOT change the user's profile — return the current accumulated profile unchanged.` : `We do not have an area-specific DATA SECTION for this turn. If the user is asking a factual question about a neighbourhood, politely ask which district or barri they mean (e.g. Sant Martí, Eixample, Gràcia, el Raval). Do not guess any numbers.`}
 
-STEP 0 — Detect audience:
-From the first message, decide if the user is looking for a place for themselves / their household (B2C, audience "b2c") or for a business / commercial location (B2B, audience "b2b"). If it is genuinely unclear, ask ONE short disambiguating question before proceeding. Do not ask it if the answer is already obvious.
+Collect mode-appropriate context:
+${audience === "b2b"
+  ? `BUSINESS: ask at most 3 to 5 short follow-up questions across: business type / sector, team size, premises type (storefront / office / workshop / logistics), premises budget, footfall & customer access, staff commute, loading / parking. Never re-ask what the user already told you. Persona options: ${personaOptions}.`
+  : `PERSONAL: ask at most 3 to 5 short follow-up questions across: household composition, budget, car yes/no, work location, lifestyle. Never re-ask what the user already told you. Persona options: ${personaOptions}.`}
 
-IF B2C (individual / household):
-  Ask at most 3 to 5 short follow-up questions across: household composition, budget, car yes/no, work location, lifestyle. Never re-ask what the user already told you.
-  Persona options: "Remote worker", "Family", "Retiree", "Relocating professional".
+The scoring categories for this mode (use these exact keys):
+${modeCats.join(", ")}.
 
-IF B2B (business):
-  Ask at most 3 to 5 short follow-up questions across: business type / sector, team size, premises type (storefront / office / workshop / logistics), premises budget, footfall & customer access, staff commute, loading / parking. Never re-ask what the user already told you.
-  Persona options: "Business founder", "Investor".
-
-The 13 scoring categories (use these exact keys):
-prices, healthcare, education, transport, car, safety, development, income, dailylife, environment, families, complaints, tourism.
+${audience === "b2b" ? `The Business-only categories (commercial, customeraccess, operations) draw on external data not yet in Open Data BCN. You may include them as priorities if the user cares about them, but tell the user their values are coming soon.` : ``}
 
 Output STRICT JSON:
 {
   "reply": "what you say this turn (warm, brief, under ~80 words). If answering a data question, give the grounded answer here. If you still need profile info, ask the next 1-2 questions here. If the user changed a priority or filter this turn, start with a one-sentence confirmation of exactly what changed.",
   "ready": boolean,
-  "audience": "b2c" | "b2b",
+  "audience": "${audience}",
   "profile": {
-    "audience": "b2c" | "b2b",
-    "persona": "Remote worker | Family | Retiree | Investor | Business founder | Relocating professional",
+    "audience": "${audience}",
+    "persona": "string from the persona options above",
     "priorities": [ { "category_key": "...", "rank": 1, "weight": 85 } ],
     "hard_filters": [ { "label": "Metro within 500 m", "type": "distance_metro_500", "value": true } ],
     "summary": "one sentence summary of the user's accumulated situation"
@@ -232,7 +246,7 @@ Rules:
 - Always respond in the same language as the user (default English).
 - ALWAYS return the complete profile object on EVERY turn — not only when ready. It is the full accumulated state: merge the user's new input into the CURRENT ACCUMULATED PROFILE. Carry forward every prior priority and hard filter the user has not contradicted; only drop or change one when the user explicitly asks. For a pure data question, return the profile unchanged.
 - The user can EDIT their priorities at any time. Handle these requests: "add X" (insert the category with a sensible default weight), "remove/drop X" (delete it), "make X less/more important", "lower X", "raise X", "X matters more/less" (adjust the weight up or down in steps of ~15), and explicit reordering ("X above Y"). After ANY edit, re-assign rank 1..N by descending weight.
-- Only set ready=true once you know the audience, the persona, and at least 5 ranked priorities. Edits can happen before or after ready.
+- Only set ready=true once you know the persona and at least 5 ranked priorities. Edits can happen before or after ready. (Audience is already known.)
 - Hard filters are optional; only include ones the user explicitly cares about. value:false = must NOT.
 - Persona nudges weighting: Investor → prices/development/tourism; Remote worker → transport/dailylife; Retiree → environment/safety/healthcare; Family → education/families/safety; Business founder → dailylife/transport/tourism/prices.`;
 
@@ -282,6 +296,7 @@ Rules:
       });
     } else {
       conversation = await base44.entities.AgentConversation.create({
+        audience,
         messages: newMessages,
         status: result?.ready ? "profile_ready" : "ongoing",
         draft_profile: result?.profile ? result.profile : null,

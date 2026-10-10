@@ -7,7 +7,7 @@ const PORTAL = "https://opendata-ajuntament.barcelona.cat";
 const STEPS = [
   {
     title: "1. Collect official indicators",
-    body: "Every neighbourhood is described by raw indicators pulled from Barcelona's Open Data BCN portal — cadastral values, metro stations, air quality, schools, noise, parks and more. Each one belongs to one of 13 scoring categories."
+    body: "Every neighbourhood is described by raw indicators pulled from Barcelona's Open Data BCN portal — cadastral values, metro stations, air quality, schools, noise, parks and more. Each one belongs to one of up to 16 scoring categories (13 personal + 3 business-only)."
   },
   {
     title: "2. Normalise to a 1–10 score",
@@ -69,6 +69,7 @@ export default function DataSources() {
               <div className="flex items-center gap-2 mb-1">
                 <span className="grid h-7 w-7 place-items-center rounded-lg bg-muted"><CategoryIcon categoryKey={cat.key} className="h-4 w-4" /></span>
                 <h3 className="font-semibold">{cat.name}</h3>
+                {(cat.modes || []).length === 1 && <span className="ml-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700">Business</span>}
                 <span className="ml-auto text-xs text-muted-foreground">{inds.length} indicator{inds.length !== 1 ? "s" : ""}</span>
               </div>
               <p className="text-sm text-muted-foreground mb-3">{cat.description}</p>

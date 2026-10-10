@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { Map, ListOrdered, GitCompareArrows, User, LogOut, Home, SlidersHorizontal, Bot, PanelRightClose, PanelRightOpen, X, BarChart3, Bookmark, BookOpen, Database, Users, LayoutDashboard } from "lucide-react";
 import AgentSidebar from "@/components/AgentSidebar";
+import ModeSwitcher from "@/components/ModeSwitcher";
 
 const MAIN_NAV = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -58,6 +59,9 @@ export default function AppLayout() {
           <span className="ml-auto rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800">sample</span>
         </div>
 
+        <div className="px-3 pt-3">
+          <ModeSwitcher />
+        </div>
         <nav className="flex-1 space-y-1 p-3 overflow-y-auto">
           {MAIN_NAV.map((n) => (
             <NavLink key={n.to} to={n.to} className={sideLinkClass}>
@@ -95,6 +99,7 @@ export default function AppLayout() {
             <span className="tracking-tight">BarrioMatch</span>
           </Link>
           <div className="flex items-center gap-1">
+            <ModeSwitcher />
             <button onClick={() => setMobileAgent(true)} className="grid h-9 w-9 place-items-center rounded-md hover:bg-muted text-primary" title="Open agent">
               <Bot className="h-5 w-5" />
             </button>

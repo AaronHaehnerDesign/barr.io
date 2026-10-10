@@ -30,3 +30,9 @@ export function audienceOf(profile) {
 export function audienceConfig(profile) {
   return AUDIENCES[audienceOf(profile)];
 }
+
+// Config keyed by an explicit audience string (the active mode), independent of
+// whether a profile exists yet for that mode.
+export function audienceConfigByKey(audience) {
+  return AUDIENCES[audience === "b2b" ? "b2b" : "b2c"];
+}

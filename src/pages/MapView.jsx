@@ -5,8 +5,9 @@ import "leaflet/dist/leaflet.css";
 import { useProfile } from "@/lib/useProfile";
 import { useDistricts, useBarris } from "@/lib/useAreas";
 import { matchScore, scoreColor, scoreLabel, categoryScoresFromArea } from "@/lib/scoring";
-import { CATEGORIES, PERSONA_FLIPS } from "@/lib/categories";
-import { audienceConfig } from "@/lib/audience";
+import { CATEGORIES, PERSONA_FLIPS, categoriesForMode } from "@/lib/categories";
+import { audienceConfigByKey } from "@/lib/audience";
+import { useActiveAudience } from "@/lib/useActiveAudience";
 
 // Fit the map tightly to the visible areas so there is no wasted space between
 // districts / barris.
@@ -42,7 +43,9 @@ export default function MapView() {
   const [metric, setMetric] = useState("match");
   const [hovered, setHovered] = useState(null);
 
-  const ac = audienceConfig(profile);
+  const { audience } = useActiveAudience();
+  const ac = audienceConfigByKey(audience);
+  const cats = categoriesForMode(audience);
 
   const weights = useMemo(() => {
     const o = {};
@@ -67,7 +70,7 @@ export default function MapView() {
   }
   function matchOf(area) {
     const cs = {};
-    CATEGORIES.forEach((c) => (cs[c.key] = catScore(area, c.key)));
+    cats.forEach((c) => (cs[c.key] = catScore(area, c.key)));
     return matchScore(cs, weights);
   }
   function value10(area) {
@@ -104,7 +107,7 @@ export default function MapView() {
     return `${a.name} · ${ms}% match · ${metricLabel(metric)}: ${catScore(a, metric).toFixed(1)}/10`;
   }
   function metricLabel(key) {
-    const c = CATEGORIES.find((x) => x.key === key);
+    const c = cats.find((x) => x.key === key);
     return c ? c.name : key;
   }
 
@@ -119,7 +122,7 @@ export default function MapView() {
           </div>
           <select value={metric} onChange={(e) => setMetric(e.target.value)} className="rounded-lg border bg-background px-2 py-1.5 text-xs">
             <option value="match">{ac.mapMetricLabel}</option>
-            {CATEGORIES.map((c) => <option key={c.key} value={c.key}>{c.name}</option>)}
+            {cats.map((c) => <option key={c.key} value={c.key}>{c.name}</option>)}
           </select>
         </div>
       </div>

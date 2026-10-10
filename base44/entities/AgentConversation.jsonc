@@ -2,6 +2,15 @@
   "name": "AgentConversation",
   "type": "object",
   "properties": {
+    "audience": {
+      "type": "string",
+      "enum": [
+        "b2c",
+        "b2b"
+      ],
+      "default": "b2c",
+      "description": "Which mode this conversation belongs to, so Personal and Business keep independent chat threads."
+    },
     "messages": {
       "type": "array",
       "items": {

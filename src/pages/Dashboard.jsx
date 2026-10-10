@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useProfile } from "@/lib/useProfile";
 import { useDistricts } from "@/lib/useAreas";
-import { CATEGORIES, CATEGORY_MAP, PERSONA_FLIPS } from "@/lib/categories";
+import { CATEGORIES, CATEGORY_MAP, PERSONA_FLIPS, categoriesForMode } from "@/lib/categories";
 import { categoryScoresFromArea, matchScore, areaSummary, scoreColor } from "@/lib/scoring";
 import { areaIntro } from "@/lib/areaIntro";
 import CategoryIcon from "@/components/CategoryIcon";
@@ -18,11 +18,12 @@ export default function Dashboard() {
     const w = {};
     (profile?.priorities || []).forEach((p) => (w[p.category_key] = p.weight));
     const flip = (profile?.persona && PERSONA_FLIPS[profile.persona]) || {};
+    const cats = categoriesForMode(profile?.audience || "b2c");
     return districts.data
       .map((a) => {
         const base = categoryScoresFromArea(a);
         const cs = {};
-        CATEGORIES.forEach((c) => {
+        cats.forEach((c) => {
           let s = base[c.key];
           if (s == null) { cs[c.key] = null; return; }
           if (flip[c.key] === "negative") s = 11 - s;

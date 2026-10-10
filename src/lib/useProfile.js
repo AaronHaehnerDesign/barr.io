@@ -1,25 +1,36 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { useActiveAudience } from "@/lib/useActiveAudience";
 
+// Each mode (Personal/Business) keeps its own profile. The active mode is the
+// source of truth for which profile to load/save, so the same hook works for
+// both — switching modes swaps the profile without overwriting the other.
 export function useProfile() {
+  const { audience } = useActiveAudience();
   return useQuery({
-    queryKey: ["userprofile"],
+    queryKey: ["userprofile", audience],
     queryFn: async () => {
-      const { items } = await base44.entities.UserProfile.filter({}, { limit: 1 });
+      const { items } = await base44.entities.UserProfile.filter(
+        { audience }, { limit: 1, sort: "-created_date" }
+      );
       return items[0] || null;
     }
   });
 }
 
 export function useSaveProfile() {
+  const { audience } = useActiveAudience();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (data) => {
-      const { items } = await base44.entities.UserProfile.filter({}, { limit: 1 });
+      const aud = data.audience || audience;
+      const { items } = await base44.entities.UserProfile.filter(
+        { audience: aud }, { limit: 1, sort: "-created_date" }
+      );
       if (items[0]) {
-        return base44.entities.UserProfile.update(items[0].id, data);
+        return base44.entities.UserProfile.update(items[0].id, { ...data, audience: aud });
       }
-      return base44.entities.UserProfile.create(data);
+      return base44.entities.UserProfile.create({ ...data, audience: aud });
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["userprofile"] })
   });

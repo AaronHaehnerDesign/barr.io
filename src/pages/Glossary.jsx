@@ -20,6 +20,7 @@ export default function Glossary() {
               <div className="flex items-center gap-2 mb-1">
                 <span className="grid h-7 w-7 place-items-center rounded-lg bg-muted"><CategoryIcon categoryKey={cat.key} className="h-4 w-4" /></span>
                 <h2 className="font-semibold">{cat.name}</h2>
+                {(cat.modes || []).length === 1 && <span className="ml-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700">Business</span>}
                 <span className="ml-auto text-xs text-muted-foreground">{inds.length} indicator{inds.length !== 1 ? "s" : ""}</span>
               </div>
               <p className="text-sm text-muted-foreground mb-3">{cat.description}</p>

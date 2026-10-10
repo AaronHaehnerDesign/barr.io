@@ -1,39 +1,62 @@
-// Single source of truth for the 13 scoring categories + their indicators.
+// Single source of truth for the scoring categories + their indicators.
 // Used by the UI for labels/icons and by the seed for indicator metadata.
+//
+// Each category declares which modes it belongs to:
+//   modes: ["b2c","b2b"] -> shown in both Personal and Business
+//   modes: ["b2b"]       -> Business-only (commercial / customer access / operations)
 
 export const CATEGORIES = [
-  { key: "prices", name: "Prices & Housing", icon: "Home", order: 1,
+  { key: "prices", name: "Prices & Housing", icon: "Home", order: 1, modes: ["b2c", "b2b"],
     description: "Cadastral value, sales volume, average home size and age, rent burden." },
-  { key: "healthcare", name: "Healthcare", icon: "HeartPulse", order: 2,
+  { key: "healthcare", name: "Healthcare", icon: "HeartPulse", order: 2, modes: ["b2c", "b2b"],
     description: "Hospitals, primary care centres (CAPs) and pharmacies." },
-  { key: "education", name: "Education", icon: "GraduationCap", order: 3,
+  { key: "education", name: "Education", icon: "GraduationCap", order: 3, modes: ["b2c", "b2b"],
     description: "Schools, nurseries and international schools." },
-  { key: "transport", name: "Transport & Walkability", icon: "Footprints", order: 4,
+  { key: "transport", name: "Transport & Walkability", icon: "Footprints", order: 4, modes: ["b2c", "b2b"],
     description: "Metro, Renfe, FGC, tram, bus, Bicing, bike lanes and pedestrian streets." },
-  { key: "car", name: "Car Access", icon: "Car", order: 5,
+  { key: "car", name: "Car Access", icon: "Car", order: 5, modes: ["b2c", "b2b"],
     description: "Parking zones and costs, underground garages, low-emission zone and EV chargers." },
-  { key: "safety", name: "Safety", icon: "ShieldCheck", order: 6,
+  { key: "safety", name: "Safety", icon: "ShieldCheck", order: 6, modes: ["b2c", "b2b"],
     description: "Perceived safety from the resident survey, traffic accidents and police stations." },
-  { key: "development", name: "Development & Change", icon: "Construction", order: 7,
+  { key: "development", name: "Development & Change", icon: "Construction", order: 7, modes: ["b2c", "b2b"],
     description: "Urban planning areas, public works and migration in/out of the barri." },
-  { key: "income", name: "Income & Demographics", icon: "Wallet", order: 8,
+  { key: "income", name: "Income & Demographics", icon: "Wallet", order: 8, modes: ["b2c", "b2b"],
     description: "Disposable income, inequality, age structure, households with children and density." },
-  { key: "dailylife", name: "Daily Life", icon: "ShoppingBag", order: 9,
+  { key: "dailylife", name: "Daily Life", icon: "ShoppingBag", order: 9, modes: ["b2c", "b2b"],
     description: "Ground-floor shops, markets, terraces, libraries, sports centres and beaches." },
-  { key: "environment", name: "Environment", icon: "Leaf", order: 10,
+  { key: "environment", name: "Environment", icon: "Leaf", order: 10, modes: ["b2c", "b2b"],
     description: "Noise, air quality (NO2, PM10, PM2.5), trees, parks and heat exposure." },
-  { key: "families", name: "Families & Pets", icon: "Baby", order: 11,
+  { key: "families", name: "Families & Pets", icon: "Baby", order: 11, modes: ["b2c", "b2b"],
     description: "Playgrounds, open school playgrounds, dog areas and elderly care homes." },
-  { key: "complaints", name: "Resident Complaints", icon: "MessageSquareWarning", order: 12,
+  { key: "complaints", name: "Resident Complaints", icon: "MessageSquareWarning", order: 12, modes: ["b2c", "b2b"],
     description: "Complaints to the council by topic: noise, dirt, pavements." },
-  { key: "tourism", name: "Tourism Pressure", icon: "Luggage", order: 13,
-    description: "Tourist flat density and tourist hotspots." }
+  { key: "tourism", name: "Tourism Pressure", icon: "Luggage", order: 13, modes: ["b2c", "b2b"],
+    description: "Tourist flat density and tourist hotspots." },
+  // --- Business-only categories ---
+  { key: "commercial", name: "Commercial Locations", icon: "Store", order: 14, modes: ["b2b"],
+    description: "Storefront availability, commercial rent and vacancy — where to set up your business." },
+  { key: "customeraccess", name: "Customer Access", icon: "Eye", order: 15, modes: ["b2b"],
+    description: "Pedestrian footfall, storefront visibility and customer flow." },
+  { key: "operations", name: "Business Operations", icon: "Truck", order: 16, modes: ["b2b"],
+    description: "Staff commute, loading zones and business parking." }
 ];
 
 export const CATEGORY_MAP = Object.fromEntries(CATEGORIES.map(c => [c.key, c]));
 
 export function getCategory(key) {
   return CATEGORY_MAP[key];
+}
+
+// Categories visible for a given mode. Business mode includes the full baseline
+// plus the three business-only categories.
+export function categoriesForMode(audience) {
+  const aud = audience === "b2b" ? "b2b" : "b2c";
+  return CATEGORIES.filter((c) => (c.modes || ["b2c", "b2b"]).includes(aud));
+}
+
+export function indicatorsForMode(audience) {
+  const keys = new Set(categoriesForMode(audience).map((c) => c.key));
+  return INDICATORS.filter((i) => keys.has(i.category_key));
 }
 
 // Indicators per category: name, unit, direction (positive = higher is better),
@@ -112,7 +135,22 @@ export const INDICATORS = [
 
   // 13. Tourism Pressure
   { name: "Tourist flats density", category_key: "tourism", unit: "per 1k inh.", direction: "negative", source_dataset: "habitatge-turistic", last_updated: "2024-01-01", year: 2024, description: "Holiday-rental units per capita. High can crowd housing and streets." },
-  { name: "Tourist hotspots", category_key: "tourism", unit: "index", direction: "negative", source_dataset: "afluencia-turistica", last_updated: "2023-09-01", year: 2023, description: "Concentration of tourist activity. High means lively but congested." }
+  { name: "Tourist hotspots", category_key: "tourism", unit: "index", direction: "negative", source_dataset: "afluencia-turistica", last_updated: "2023-09-01", year: 2023, description: "Concentration of tourist activity. High means lively but congested." },
+
+  // 14. Commercial Locations — business only (external, coming soon)
+  { name: "Commercial premises availability", category_key: "commercial", unit: "count", direction: "positive", source_dataset: "external-commercial", last_updated: "2024-01-01", year: 2024, external: true, description: "Available storefronts and commercial premises. More options to find the right location." },
+  { name: "Average commercial rent", category_key: "commercial", unit: "€/m²/month", direction: "negative", source_dataset: "external-commercial", last_updated: "2024-01-01", year: 2024, external: true, description: "Monthly rent per m² for commercial space. Lower means cheaper premises." },
+  { name: "Storefront vacancy rate", category_key: "commercial", unit: "%", direction: "negative", source_dataset: "external-commercial", last_updated: "2024-01-01", year: 2024, external: true, description: "Share of empty storefronts. High can mean weak demand or new opportunity." },
+
+  // 15. Customer Access — business only (external, coming soon)
+  { name: "Pedestrian footfall", category_key: "customeraccess", unit: "index", direction: "positive", source_dataset: "external-footfall", last_updated: "2024-01-01", year: 2024, external: true, description: "Daily pedestrian traffic. Higher means more potential walk-in customers." },
+  { name: "Storefront visibility", category_key: "customeraccess", unit: "index", direction: "positive", source_dataset: "external-visibility", last_updated: "2024-01-01", year: 2024, external: true, description: "How visible a premises is from passing traffic. Higher is better for retail." },
+  { name: "Tourist/customer flow", category_key: "customeraccess", unit: "index", direction: "positive", source_dataset: "external-flow", last_updated: "2024-01-01", year: 2024, external: true, description: "Concentration of tourist and customer activity. High means strong visitor demand." },
+
+  // 16. Business Operations — business only (external, coming soon)
+  { name: "Staff commute time", category_key: "operations", unit: "min", direction: "negative", source_dataset: "external-commute", last_updated: "2024-01-01", year: 2024, external: true, description: "Average commute time for staff. Lower helps attract and keep employees." },
+  { name: "Loading zones", category_key: "operations", unit: "count", direction: "positive", source_dataset: "external-loading", last_updated: "2024-01-01", year: 2024, external: true, description: "Designated loading/unloading bays. More eases deliveries and logistics." },
+  { name: "Business parking", category_key: "operations", unit: "count", direction: "positive", source_dataset: "external-parking", last_updated: "2024-01-01", year: 2024, external: true, description: "Nearby parking for staff and customers. More supports car-based access." }
 ];
 
 export const PERSONAS = ["Remote worker", "Family", "Retiree", "Investor", "Business founder", "Relocating professional"];

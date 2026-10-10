@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Legend } from "recharts";
 import { useDistricts, useBarris } from "@/lib/useAreas";
 import { useProfile } from "@/lib/useProfile";
-import { CATEGORIES, CATEGORY_MAP, INDICATORS, PERSONA_FLIPS } from "@/lib/categories";
+import { CATEGORIES, CATEGORY_MAP, INDICATORS, PERSONA_FLIPS, categoriesForMode, indicatorsForMode } from "@/lib/categories";
 import { categoryScoresFromArea, matchScore } from "@/lib/scoring";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
@@ -25,6 +25,9 @@ export default function Compare() {
   const districts = useDistricts();
   const barris = useBarris();
   const { data: profile } = useProfile();
+  const aud = profile?.audience || "b2c";
+  const cats = categoriesForMode(aud);
+  const inds = indicatorsForMode(aud);
   const qc = useQueryClient();
   const [type, setType] = useState("district");
   const [selected, setSelected] = useState([]); // ids
@@ -86,7 +89,7 @@ export default function Compare() {
   const areas = type === "district" ? (districts.data || []).map(a => ({ ...a, _type: "district" })) : (barris.data || []).map(a => ({ ...a, _type: "barri" }));
   const chosen = selected.map(id => areas.find(a => a.id === id)).filter(Boolean);
 
-  const radarData = useMemo(() => CATEGORIES.map(c => {
+  const radarData = useMemo(() => cats.map(c => {
     const row = { category: c.name };
     chosen.forEach(a => { const cs = categoryScoresFromArea(a); row[a.name] = cs[c.key] ?? 0; });
     return row;
@@ -98,13 +101,13 @@ export default function Compare() {
       .slice().sort((a, b) => (b.weight || 0) - (a.weight || 0))
       .map((p) => p.category_key)
       .filter((k) => CATEGORY_MAP[k]);
-    const otherKeys = CATEGORIES.filter((c) => !priKeys.includes(c.key)).sort((a, b) => a.order - b.order).map((c) => c.key);
+    const otherKeys = cats.filter((c) => !priKeys.includes(c.key)).sort((a, b) => a.order - b.order).map((c) => c.key);
     return ["all", ...priKeys, ...otherKeys];
   }, [profile]);
 
   const focusedIndicators = useMemo(
-    () => (cat === "all" ? INDICATORS : INDICATORS.filter((ind) => ind.category_key === cat)),
-    [cat]
+    () => (cat === "all" ? inds : inds.filter((ind) => ind.category_key === cat)),
+    [cat, inds]
   );
 
   const focusedScores = useMemo(() => {

@@ -4,7 +4,8 @@ import { MapContainer, TileLayer, Polygon, CircleMarker, useMap } from "react-le
 import "leaflet/dist/leaflet.css";
 import { useDistrict, useBarri } from "@/lib/useAreas";
 import { useProfile } from "@/lib/useProfile";
-import { CATEGORIES, CATEGORY_MAP, INDICATORS } from "@/lib/categories";
+import { useActiveAudience } from "@/lib/useActiveAudience";
+import { CATEGORIES, CATEGORY_MAP, INDICATORS, categoriesForMode, indicatorsForMode } from "@/lib/categories";
 import { matchScore, scoreColor, categoryScoresFromArea } from "@/lib/scoring";
 import { areaIntro } from "@/lib/areaIntro";
 
@@ -46,17 +47,21 @@ export default function AreaDetail() {
   const barriQ = useBarri(type === "barri" ? id : undefined);
   const q = type === "barri" ? barriQ : districtQ;
   const { data: profile } = useProfile();
+  const { audience } = useActiveAudience();
 
   if (q.isLoading) return <div className="p-8 text-center text-muted-foreground">Loading…</div>;
   const a = q.data;
   if (!a) return <div className="p-8 text-center">Area not found. <Link to="/results" className="text-primary underline">Back</Link></div>;
 
   const scores = categoryScoresFromArea(a);
+  const aud = profile?.audience || audience;
+  const cats = categoriesForMode(aud);
+  const inds = indicatorsForMode(aud);
   const weights = {};
   (profile?.priorities || []).forEach((p) => (weights[p.category_key] = p.weight));
   const ms = Object.keys(weights).length ? matchScore(scores, weights) : null;
 
-  const sorted = CATEGORIES.map((c) => ({ ...c, score: scores[c.key] })).filter((c) => c.score != null);
+  const sorted = cats.map((c) => ({ ...c, score: scores[c.key] })).filter((c) => c.score != null);
   const good = [...sorted].sort((x, y) => y.score - x.score).slice(0, 3);
   const watch = [...sorted].sort((x, y) => x.score - y.score).slice(0, 3);
 
@@ -145,26 +150,27 @@ export default function AreaDetail() {
             </tr>
           </thead>
           <tbody>
-            {(a.indicators || []).map((iv) => {
-              const ind = INDICATORS.find((x) => x.name === iv.indicator_name);
+            {inds.map((ind) => {
+              const iv = (a.indicators || []).find((x) => x.indicator_name === ind.name);
+              const noValue = !iv || iv.external || ind.external || iv.raw_value == null;
               return (
-                <tr key={iv.indicator_name} className="border-b last:border-0">
+                <tr key={ind.name} className="border-b last:border-0">
                   <td className="p-3 align-top">
-                    <div className="flex items-center gap-2 font-medium"><CategoryIcon categoryKey={iv.category_key} className="h-3.5 w-3.5 text-muted-foreground" />{iv.indicator_name}</div>
-                    <span className="text-[11px] leading-snug text-muted-foreground">{ind?.description}</span>
+                    <div className="flex items-center gap-2 font-medium"><CategoryIcon categoryKey={ind.category_key} className="h-3.5 w-3.5 text-muted-foreground" />{ind.name}</div>
+                    <span className="text-[11px] leading-snug text-muted-foreground">{ind.description}</span>
                   </td>
                   <td className="p-3 align-top">
-                    {iv.external ? (
+                    {noValue ? (
                       <span className="text-xs text-muted-foreground">coming soon</span>
                     ) : (
                       <div>
                         <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium text-white" style={{ backgroundColor: scoreColor(iv.normalized_score) }}>{readingFor(iv.normalized_score)}</span>
-                        <span className="block mt-1 text-[11px] text-muted-foreground">{ind?.direction === "negative" ? "lower raw value is better" : "higher raw value is better"}</span>
+                        <span className="block mt-1 text-[11px] text-muted-foreground">{ind.direction === "negative" ? "lower raw value is better" : "higher raw value is better"}</span>
                       </div>
                     )}
                   </td>
-                  <td className="p-3 text-right align-top tabular-nums">{iv.external ? <span className="text-xs text-muted-foreground">—</span> : <span>{iv.raw_value} <span className="text-[11px] text-muted-foreground">{iv.unit}</span></span>}</td>
-                  <td className="p-3 text-center align-top"><ScoreBadge score={iv.external ? null : iv.normalized_score} size="sm" /></td>
+                  <td className="p-3 text-right align-top tabular-nums">{noValue ? <span className="text-xs text-muted-foreground">—</span> : <span>{iv.raw_value} <span className="text-[11px] text-muted-foreground">{ind.unit}</span></span>}</td>
+                  <td className="p-3 text-center align-top"><ScoreBadge score={noValue ? null : iv.normalized_score} size="sm" /></td>
                 </tr>
               );
             })}

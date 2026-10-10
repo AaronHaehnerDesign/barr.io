@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useDistricts, useBarris } from "@/lib/useAreas";
-import { CATEGORIES, CATEGORY_MAP, PERSONA_FLIPS } from "@/lib/categories";
+import { CATEGORIES, CATEGORY_MAP, PERSONA_FLIPS, categoriesForMode } from "@/lib/categories";
 import { PERSONA_LIBRARY, personaWeights } from "@/lib/personas";
 import { categoryScoresFromArea, matchScore, areaSummary, scoreColor } from "@/lib/scoring";
 import ScoreBadge from "@/components/ScoreBadge";
@@ -17,7 +17,7 @@ function rankFor(persona, areas, type) {
     .map((a) => {
       const base = categoryScoresFromArea(a);
       const cs = {};
-      CATEGORIES.forEach((c) => {
+      categoriesForMode(persona.audience).forEach((c) => {
         let s = base[c.key];
         if (s == null) { cs[c.key] = null; return; }
         if (flip[c.key] === "negative") s = 11 - s;

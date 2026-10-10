@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useProfile } from "@/lib/useProfile";
 import { useDistricts, useBarris } from "@/lib/useAreas";
 import { matchScore, topReasons, scoreColor, categoryScoresFromArea, areaSummary } from "@/lib/scoring";
-import { CATEGORIES, CATEGORY_MAP, PERSONA_FLIPS } from "@/lib/categories";
+import { CATEGORIES, CATEGORY_MAP, PERSONA_FLIPS, categoriesForMode } from "@/lib/categories";
 import { audienceConfig } from "@/lib/audience";
 import ScoreBadge from "@/components/ScoreBadge";
 import CategoryIcon from "@/components/CategoryIcon";
@@ -25,13 +25,14 @@ export default function Results() {
 
   const flip = (profile?.persona && PERSONA_FLIPS[profile.persona]) || {};
   const ac = audienceConfig(profile);
+  const cats = categoriesForMode(profile?.audience || "b2c");
 
   function rank(areas, type) {
     return areas
       .map((a) => {
         const base = categoryScoresFromArea(a);
         const cs = {};
-        CATEGORIES.forEach((c) => {
+        cats.forEach((c) => {
           let s = base[c.key];
           if (s == null) { cs[c.key] = null; return; }
           if (flip[c.key] === "negative") s = 11 - s;

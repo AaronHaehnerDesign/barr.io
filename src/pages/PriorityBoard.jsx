@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useProfile, useSaveProfile } from "@/lib/useProfile";
-import { CATEGORIES, CATEGORY_MAP } from "@/lib/categories";
+import { CATEGORIES, CATEGORY_MAP, categoriesForMode } from "@/lib/categories";
 import CategoryIcon from "@/components/CategoryIcon";
 import { Button } from "@/components/ui/button";
 import { X, Check, Sparkles, Shield } from "lucide-react";
@@ -36,6 +36,7 @@ export default function PriorityBoard() {
   if (isLoading) return <div className="p-8 text-center text-muted-foreground">Loading your profile…</div>;
   if (!profile) return <div className="p-8 text-center"><p className="text-muted-foreground mb-3">Start the onboarding chat first.</p><Button onClick={() => navigate("/onboarding")}><Sparkles className="h-4 w-4" /> Start onboarding</Button></div>;
 
+  const cats = categoriesForMode(profile.audience || "b2c");
   const list = items.length ? items : (profile.priorities || []);
   // The board always reflects the chosen weights: highest weight on top.
   const ordered = ranked(list);
@@ -80,7 +81,7 @@ export default function PriorityBoard() {
   }
 
   const usedKeys = ordered.map((p) => p.category_key);
-  const unused = CATEGORIES.filter((c) => !usedKeys.includes(c.key));
+  const unused = cats.filter((c) => !usedKeys.includes(c.key));
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-6">

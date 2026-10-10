@@ -2,25 +2,26 @@ import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { useDistricts, useBarris } from "@/lib/useAreas";
-import { CATEGORIES, CATEGORY_MAP, INDICATORS } from "@/lib/categories";
+import { useActiveAudience } from "@/lib/useActiveAudience";
+import { CATEGORY_MAP, INDICATORS, categoriesForMode, indicatorsForMode } from "@/lib/categories";
 import { categoryScoresFromArea, scoreColor, isStale } from "@/lib/scoring";
 import CategoryIcon from "@/components/CategoryIcon";
 import ScoreBadge from "@/components/ScoreBadge";
 import { BarChart3, Map as MapIcon, Database, Layers, ChevronRight } from "lucide-react";
 
-function avgByCategory(areas) {
+function avgByCategory(areas, cats) {
   const sums = {};
   const counts = {};
   areas.forEach((a) => {
     const cs = categoryScoresFromArea(a);
-    CATEGORIES.forEach((c) => {
+    cats.forEach((c) => {
       if (cs[c.key] != null) {
         sums[c.key] = (sums[c.key] || 0) + cs[c.key];
         counts[c.key] = (counts[c.key] || 0) + 1;
       }
     });
   });
-  return CATEGORIES.map((c) => ({
+  return cats.map((c) => ({
     key: c.key,
     name: c.name,
     avg: counts[c.key] ? +(sums[c.key] / counts[c.key]).toFixed(1) : null
@@ -31,9 +32,12 @@ export default function DataInsights() {
   const districts = useDistricts();
   const barris = useBarris();
   const loading = districts.isLoading || barris.isLoading;
+  const { audience } = useActiveAudience();
+  const cats = categoriesForMode(audience);
+  const inds = indicatorsForMode(audience);
 
-  const distAvg = useMemo(() => avgByCategory(districts.data || []).sort((a, b) => b.avg - a.avg), [districts.data]);
-  const barriAvg = useMemo(() => avgByCategory(barris.data || []).sort((a, b) => b.avg - a.avg), [barris.data]);
+  const distAvg = useMemo(() => avgByCategory(districts.data || [], cats).sort((a, b) => b.avg - a.avg), [districts.data, cats]);
+  const barriAvg = useMemo(() => avgByCategory(barris.data || [], cats).sort((a, b) => b.avg - a.avg), [barris.data, cats]);
 
   const leaderboard = useMemo(() => {
     return (districts.data || [])
@@ -49,7 +53,7 @@ export default function DataInsights() {
 
   const citywideTop = distAvg.slice(0, 3);
   const citywideBottom = distAvg.slice(-3).reverse();
-  const staleCount = INDICATORS.filter((i) => isStale(i.last_updated)).length;
+  const staleCount = inds.filter((i) => isStale(i.last_updated)).length;
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-6">
@@ -62,8 +66,8 @@ export default function DataInsights() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
         <Stat icon={Layers} label="Districts" value={(districts.data || []).length} />
         <Stat icon={MapIcon} label="Barris" value={(barris.data || []).length} />
-        <Stat icon={Database} label="Indicators" value={INDICATORS.length} />
-        <Stat icon={BarChart3} label="Categories" value={CATEGORIES.length} />
+        <Stat icon={Database} label="Indicators" value={inds.length} />
+        <Stat icon={BarChart3} label="Categories" value={cats.length} />
       </div>
 
       {loading ? (
