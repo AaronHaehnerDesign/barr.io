@@ -62,10 +62,11 @@ export default function Compare() {
     if (preselectRef.current === type) return;
     const data = type === "district" ? districts.data : barris.data;
     if (!data || !data.length) return;
-    const pri = profile?.priorities;
-    if (!pri || !pri.length) return;
+    const pri = profile?.priorities || [];
     const w = {};
     pri.forEach((p) => (w[p.category_key] = p.weight));
+    // No priorities yet: weigh every category equally so we still show a top 3.
+    if (!pri.length) CATEGORIES.forEach((c) => (w[c.key] = 50));
     const flip = (profile?.persona && PERSONA_FLIPS[profile.persona]) || {};
     const scored = data
       .map((a) => {

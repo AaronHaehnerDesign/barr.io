@@ -89,6 +89,18 @@ export default function AgentSidebar({ className = "" }) {
             </div>
           </div>
         ))}
+        {!pending.length && !serverMessages.some((m) => m.role === "user") && !loading && (
+          <div className="flex flex-wrap gap-2 pl-1">
+            {(audience === "b2b" ? ["Shop", "Restaurant", "Office"] : ["Just me", "Couple", "Family with kids"]).map((c) => (
+              <button key={c} type="button" onClick={() => send(c)} className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-sm font-medium text-emerald-800 hover:bg-emerald-100">{c}</button>
+            ))}
+          </div>
+        )}
+        {convo?.status !== "profile_ready" && (
+          <p className="text-center text-[11px] font-medium text-muted-foreground">
+            Question {Math.min(3, messages.filter((m) => m.role === "user").length + 1)} of 3
+          </p>
+        )}
         {loading && (
           <div className="flex justify-start">
             <div className="rounded-2xl bg-muted px-4 py-3"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>

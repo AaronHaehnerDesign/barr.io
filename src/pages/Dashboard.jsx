@@ -10,26 +10,7 @@ import CategoryIcon from "@/components/CategoryIcon";
 import { Button } from "@/components/ui/button";
 import { LayoutDashboard, Sparkles, ArrowRight, Map as MapIcon, GitCompareArrows, SlidersHorizontal, ChevronRight, BarChart3, Users } from "lucide-react";
 
-function rankAreas(data, profile) {
-  if (!data) return [];
-  const w = {};
-  (profile?.priorities || []).forEach((p) => (w[p.category_key] = p.weight));
-  const flip = (profile?.persona && PERSONA_FLIPS[profile.persona]) || {};
-  const cats = categoriesForMode(profile?.audience || "b2c");
-  return data
-    .map((a) => {
-      const base = categoryScoresFromArea(a);
-      const cs = {};
-      cats.forEach((c) => {
-        let s = base[c.key];
-        if (s == null) { cs[c.key] = null; return; }
-        if (flip[c.key] === "negative") s = 11 - s;
-        cs[c.key] = Math.max(1, Math.min(10, Math.round(s * 10) / 10));
-      });
-      return { ...a, _scores: cs, match_score: matchScore(cs, w) };
-    })
-    .sort((a, b) => b.match_score - a.match_score);
-}
+import { rankAreas } from "@/lib/rankAreas";
 
 export default function Dashboard() {
   const { data: profile } = useProfile();
@@ -102,20 +83,17 @@ export default function Dashboard() {
       </div>
 
       <h2 className="mt-6 mb-2 font-semibold">Top recommended districts</h2>
-      <div className="space-y-2">
+      <div className="grid gap-3 sm:grid-cols-3">
         {top3.map((a, i) => (
-          <Link key={a.id} to={`/area/district/${a.id}`} className="flex items-center gap-3 rounded-xl border bg-card p-3 shadow-sm hover:bg-muted/50">
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl text-white" style={{ backgroundColor: scoreColor((a.match_score / 10) + 1) }}>
-              <span className="text-sm font-bold">{a.match_score}%</span>
-            </span>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="font-medium truncate">{a.name}</span>
-                {i < 3 && <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">TOP {i + 1}</span>}
-              </div>
-              <p className="text-xs text-muted-foreground truncate">{areaSummary(a._scores)}</p>
+          <Link key={a.id} to={`/area/district/${a.id}`} className="group relative flex flex-col overflow-hidden rounded-2xl border bg-card p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+            <span className="absolute inset-x-0 top-0 h-1" style={{ backgroundColor: scoreColor((a.match_score / 10) + 1) }} />
+            <div className="flex items-center justify-between">
+              <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">TOP {i + 1}</span>
+              <ChevronRight className="h-4 w-4 text-muted-foreground transition group-hover:translate-x-0.5" />
             </div>
-            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <div className="mt-3 text-3xl font-bold" style={{ color: scoreColor((a.match_score / 10) + 1) }}>{a.match_score}%</div>
+            <div className="mt-1 font-heading text-xl leading-tight">{a.name}</div>
+            <p className="mt-2 text-xs leading-relaxed text-muted-foreground line-clamp-3">{areaSummary(a._scores)}</p>
           </Link>
         ))}
       </div>

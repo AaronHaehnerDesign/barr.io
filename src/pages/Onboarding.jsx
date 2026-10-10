@@ -36,7 +36,7 @@ export default function Onboarding() {
       setTimeout(async () => {
         await saveProfile.mutateAsync({ ...profile, confirmed: true });
         navigate("/dashboard");
-      }, 2200);
+      }, 5200);
     }
   }, [agentReady, profile, saveProfile, navigate]);
 
