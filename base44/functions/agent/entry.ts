@@ -238,13 +238,15 @@ Rules for data questions:
 Collect mode-appropriate context:
 ${audience === "b2b"
   ? `BUSINESS: ask at most 3 to 5 short follow-up questions across: business type / sector, team size, premises type (storefront / office / workshop / logistics), premises budget, footfall & customer access, staff commute, loading / parking. Never re-ask what the user already told you. Persona options: ${personaOptions}. Also ask which Barcelona district or neighbourhood the business will be located in, and capture it as a single work_locations entry.`
-  : `PERSONAL: ask at most 3 to 5 short follow-up questions across: household composition, budget (and whether to rent or buy), number of bedrooms needed, car yes/no, work location(s), lifestyle. Never re-ask what the user already told you. Persona options: ${personaOptions}.`}
+  : `PERSONAL: ask at most 3 to 5 short follow-up questions across: household composition, budget (and whether to rent or buy), number of bedrooms needed, car yes/no, work location(s), must-haves and no-goes for the neighbourhood, lifestyle. Never re-ask what the user already told you. Persona options: ${personaOptions}.`}
 
 APARTMENT SEARCH — capture so the app can show matching homes and pin work commutes on the map. Carry every value forward each turn (like priorities); only change one when the user explicitly updates it.
 - work_locations: a list of { "label": short label, "area_name": a Barcelona district or barri name }. For a couple where both partners work in an office, capture BOTH partners' work locations (two entries, e.g. labels "Partner 1" and "Partner 2"). For a single worker, one entry. For business mode, one entry for the business location. Map each place the user names to the closest name from the Barcelona districts list below, or a known barri (el Born, Poblenou, Sant Antoni, Gràcia, el Raval, Sarrià…). If you cannot identify the area, set area_name to null and put the raw place in label.
 - budget_type: "rent" or "buy".
 - budget_max: a number — the max monthly rent (€) when budget_type is rent, or the max purchase price (€) when buy.
 - rooms_needed: a number of bedrooms needed (minimum).
+- MUST-HAVES & NO-GOES: actively ask what the user absolutely needs in a neighbourhood (must-haves) and what they want to avoid (no-goes) — e.g. "must have a metro within 500 m", "must have a school within 1 km", "must avoid tourist-flat hotspots", "no noisy nightlife streets". Capture each one in hard_filters: { label: short human label, type: a stable snake_case key derived from the label, value: true for a must-have, false for a no-go }. These are non-negotiable and carry forward each turn.
+- The apartment budget (budget_type + budget_max + rooms_needed) presets the "Homes in your top districts", area-detail and Apartments filters, so always capture it.
 Barcelona districts: ${districtNamesList}.
 
 The opening assistant message already asked one mode-specific question. On the first turn, do NOT repeat it — acknowledge the user's first answer and ask the next mode-appropriate question.
@@ -263,7 +265,7 @@ Output STRICT JSON:
     "audience": "${audience}",
     "persona": "string from the persona options above",
     "priorities": [ { "category_key": "...", "rank": 1, "weight": 85 } ],
-    "hard_filters": [ { "label": "Metro within 500 m", "type": "distance_metro_500", "value": true } ],
+    "hard_filters": [ { "label": "Metro within 500 m", "type": "metro_500", "value": true }, { "label": "Tourist-flat hotspot", "type": "no_tourist_flats", "value": false } ],
     "work_locations": [ { "label": "Partner 1", "area_name": "Eixample" } ],
     "budget_type": "rent",
     "budget_max": 2000,
@@ -277,7 +279,7 @@ Rules:
 - ALWAYS return the complete profile object on EVERY turn — not only when ready. It is the full accumulated state: merge the user's new input into the CURRENT ACCUMULATED PROFILE. Carry forward every prior priority, hard filter, work location, budget and room value the user has not contradicted; only drop or change one when the user explicitly asks. For a pure data question, return the profile unchanged.
 - The user can EDIT their priorities at any time. Handle these requests: "add X" (insert the category with a sensible default weight), "remove/drop X" (delete it), "make X less/more important", "lower X", "raise X", "X matters more/less" (adjust the weight up or down in steps of ~15), and explicit reordering ("X above Y"). After ANY edit, re-assign rank 1..N by descending weight.
 - Only set ready=true once you know the persona and at least 5 ranked priorities. Edits can happen before or after ready. (Audience is already known.)
-- Hard filters are optional; only include ones the user explicitly cares about. value:false = must NOT.
+- Hard filters capture the user's MUST-HAVES (value: true) and NO-GOES (value: false) — non-negotiable neighbourhood requirements. ALWAYS ask for at least one must-have and one no-go during onboarding if the user hasn't given any. Each entry needs { label: short label, type: snake_case key from the label, value: true (must-have) / false (no-go) }. Only include ones the user explicitly mentions; carry all of them forward each turn.
 - Persona nudges weighting: Investor → prices/development/tourism; Remote worker → transport/dailylife; Retiree → environment/safety/healthcare; Family → education/families/safety; Business founder → dailylife/transport/tourism/prices.`;
 
     const convoMessages = [...priorMessages, { role: "user", content: input || "(no new input - please continue)" }];
