@@ -10,7 +10,7 @@ export default function Landing() {
             <span className="grid h-7 w-7 place-items-center rounded-lg bg-primary text-primary-foreground">
               <Map className="h-4 w-4" />
             </span>
-            BarrioMatch
+            barr.io
           </span>
           <div className="flex items-center gap-2">
             <Link to="/login" className="text-sm font-medium px-3 py-1.5 hover:bg-muted rounded-md">Log in</Link>

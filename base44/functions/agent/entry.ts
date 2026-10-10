@@ -15,11 +15,11 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
 
 const WELCOME_B2C = {
   role: "assistant",
-  content: "Hi! I'm your BarrioMatch agent — I'll help you find your ideal Barcelona neighbourhood. To start, who will be living there? Just you, a couple, or a family with kids?",
+  content: "Hi! I'm your barr.io agent — I'll help you find your ideal Barcelona neighbourhood. To start, who will be living there? Just you, a couple, or a family with kids?",
 };
 const WELCOME_B2B = {
   role: "assistant",
-  content: "Hi! I'm your BarrioMatch agent — I'll help you find the right Barcelona location for your business. To start, what kind of business is it? (shop, restaurant, office, workshop…)",
+  content: "Hi! I'm your barr.io agent — I'll help you find the right Barcelona location for your business. To start, what kind of business is it? (shop, restaurant, office, workshop…)",
 };
 const welcomeFor = (audience: string) => audience === "b2b" ? WELCOME_B2B : WELCOME_B2C;
 
@@ -212,7 +212,7 @@ export default async function (req: any) {
       ? '"Business founder", "Investor"'
       : '"Remote worker", "Family", "Retiree", "Relocating professional"';
 
-    const systemPrompt = `You are BarrioMatch, a friendly expert on Barcelona's neighbourhoods (10 districts and 73 barris).
+    const systemPrompt = `You are barr.io, a friendly expert on Barcelona's neighbourhoods (10 districts and 73 barris).
 You help the user build a priority profile so the app can rank areas for them.
 
 MODE: The user has already chosen ${audience === "b2b" ? "Business" : "Personal"} mode (audience "${audience}"). Do NOT ask whether they are personal or business — treat this as decided. ${audience === "b2b" ? "They are choosing a location for a business." : "They are choosing a home for themselves or their household."} The account type is FIXED for this account and can never be changed or switched — the "audience" field in your output must always be "${audience}", regardless of what the user says.

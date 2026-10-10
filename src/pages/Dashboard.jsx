@@ -39,7 +39,7 @@ export default function Dashboard() {
     return (
       <div className="mx-auto max-w-2xl px-4 py-16 text-center">
         <Sparkles className="h-8 w-8 mx-auto text-primary mb-3" />
-        <h1 className="text-xl font-semibold">Welcome to BarrioMatch</h1>
+        <h1 className="text-xl font-semibold">Welcome to barr.io</h1>
         <p className="text-muted-foreground mt-2">Tell our AI agent what matters to you, then we'll rank every Barcelona neighbourhood to your priorities.</p>
         <Button asChild className="mt-5"><Link to="/onboarding"><Sparkles className="h-4 w-4" /> Start onboarding</Link></Button>
       </div>

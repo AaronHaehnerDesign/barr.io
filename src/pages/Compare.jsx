@@ -80,8 +80,8 @@ export default function Compare() {
         return { id: a.id, ms: matchScore(cs, w) };
       })
       .sort((a, b) => b.ms - a.ms);
-    if (scored[0]) {
-      setSelected([scored[0].id]);
+    if (scored.length) {
+      setSelected(scored.slice(0, 3).map((s) => s.id));
       preselectRef.current = type;
     }
   }, [type, districts.data, barris.data, profile]);

@@ -9,8 +9,8 @@ import VoiceRecorder from "@/components/VoiceRecorder";
 import { Button } from "@/components/ui/button";
 import { Send, Sparkles, Loader2 } from "lucide-react";
 
-const WELCOME_B2C = { role: "assistant", content: "Hi! I'm your BarrioMatch agent — I'll help you find your ideal Barcelona neighbourhood. To start, who will be living there? Just you, a couple, or a family with kids?" };
-const WELCOME_B2B = { role: "assistant", content: "Hi! I'm your BarrioMatch agent — I'll help you find the right Barcelona location for your business. To start, what kind of business is it? (shop, restaurant, office, workshop…)" };
+const WELCOME_B2C = { role: "assistant", content: "Hi! I'm your barr.io agent — I'll help you find your ideal Barcelona neighbourhood. To start, who will be living there? Just you, a couple, or a family with kids?" };
+const WELCOME_B2B = { role: "assistant", content: "Hi! I'm your barr.io agent — I'll help you find the right Barcelona location for your business. To start, what kind of business is it? (shop, restaurant, office, workshop…)" };
 
 // Self-contained agent chat designed to live in a right sidebar. When the agent
 // detects a ready profile it saves it immediately (preserving the existing

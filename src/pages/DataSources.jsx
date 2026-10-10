@@ -39,7 +39,7 @@ export default function DataSources() {
         <h1 className="text-lg font-semibold">Data sources</h1>
       </div>
       <p className="text-sm text-muted-foreground mb-5">
-        Every score in BarrioMatch is built from official city data. All datasets come from{" "}
+        Every score in barr.io is built from official city data. All datasets come from{" "}
         <a href={PORTAL} target="_blank" rel="noreferrer" className="text-primary underline inline-flex items-center gap-0.5">
           Open Data BCN <ExternalLink className="h-3 w-3" />
         </a>, the open-data portal of Barcelona City Council.

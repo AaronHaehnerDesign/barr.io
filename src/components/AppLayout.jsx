@@ -84,7 +84,7 @@ export default function AppLayout() {
             <span className="grid h-7 w-7 place-items-center rounded-lg bg-primary text-primary-foreground">
               <Home className="h-4 w-4" />
             </span>
-            <span className="tracking-tight">BarrioMatch</span>
+            <span className="tracking-tight">barr.io</span>
           </Link>
         </div>
 
@@ -126,7 +126,7 @@ export default function AppLayout() {
             <span className="grid h-7 w-7 place-items-center rounded-lg bg-primary text-primary-foreground">
               <Home className="h-4 w-4" />
             </span>
-            <span className="tracking-tight">BarrioMatch</span>
+            <span className="tracking-tight">barr.io</span>
           </Link>
           <div className="flex items-center gap-1">
             <AccountPill />
