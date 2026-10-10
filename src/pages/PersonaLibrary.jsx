@@ -6,9 +6,10 @@ import { PERSONA_LIBRARY, personaWeights } from "@/lib/personas";
 import { categoryScoresFromArea, matchScore, areaSummary, scoreColor } from "@/lib/scoring";
 import ScoreBadge from "@/components/ScoreBadge";
 import CategoryIcon from "@/components/CategoryIcon";
-import { Briefcase, Coffee, Baby, HeartPulse, Plane, Wallet, Users, ChevronRight, Layers } from "lucide-react";
+import { Briefcase, Coffee, Baby, HeartPulse, Plane, Wallet, Users, ChevronRight, Layers, GraduationCap, Laptop, Palette, ShoppingBag, UtensilsCrossed, Building2, Truck, Stethoscope } from "lucide-react";
+import { useActiveAudience } from "@/lib/useActiveAudience";
 
-const ICONS = { Briefcase, Coffee, Baby, HeartPulse, Plane, Wallet, Users };
+const ICONS = { Briefcase, Coffee, Baby, HeartPulse, Plane, Wallet, Users, GraduationCap, Laptop, Palette, ShoppingBag, UtensilsCrossed, Building2, Truck, Stethoscope };
 
 function rankFor(persona, areas, type) {
   const w = personaWeights(persona);
@@ -31,16 +32,29 @@ function rankFor(persona, areas, type) {
 export default function PersonaLibrary() {
   const districts = useDistricts();
   const barris = useBarris();
-  const [selected, setSelected] = useState(PERSONA_LIBRARY[0]);
+  const { audience } = useActiveAudience();
+  const library = useMemo(
+    () => PERSONA_LIBRARY.filter((p) => p.audience === audience),
+    [audience]
+  );
+  const [selectedName, setSelectedName] = useState(null);
   const [level, setLevel] = useState("district");
 
+  const selected = library.find((p) => p.name === selectedName) || library[0];
+
   const ranked = useMemo(() => {
+    if (!selected) return [];
     const data = level === "district" ? districts.data : barris.data;
     if (!data) return [];
     return rankFor(selected, data, level).slice(0, 8);
   }, [selected, level, districts.data, barris.data]);
 
   const loading = level === "district" ? districts.isLoading : barris.isLoading;
+
+  if (!selected) {
+    return <div className="mx-auto max-w-3xl px-4 py-16 text-center text-muted-foreground">Loading personas…</div>;
+  }
+
   const topPriorities = [...selected.priorities].sort((a, b) => b.weight - a.weight).slice(0, 5);
 
   return (
@@ -52,18 +66,17 @@ export default function PersonaLibrary() {
       <p className="text-sm text-muted-foreground mb-4">Browse pre-configured profiles and see how the app ranks Barcelona's neighbourhoods for each.</p>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 mb-5">
-        {PERSONA_LIBRARY.map((p) => {
+        {library.map((p) => {
           const Icon = ICONS[p.icon] || Users;
           const active = selected.name === p.name;
           return (
             <button
               key={p.name}
-              onClick={() => setSelected(p)}
+              onClick={() => setSelectedName(p.name)}
               className={`flex flex-col items-start gap-1 rounded-xl border p-3 text-left transition-colors ${active ? "border-primary ring-1 ring-primary bg-primary/5" : "hover:bg-muted"}`}
             >
               <span className="grid h-7 w-7 place-items-center rounded-lg bg-muted"><Icon className="h-4 w-4" /></span>
               <span className="text-sm font-medium leading-tight">{p.name}</span>
-              <span className="text-[10px] text-muted-foreground uppercase tracking-wide">{p.audience === "b2b" ? "Business" : "Personal"}</span>
             </button>
           );
         })}

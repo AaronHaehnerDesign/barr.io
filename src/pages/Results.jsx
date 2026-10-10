@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useProfile } from "@/lib/useProfile";
 import { useDistricts, useBarris } from "@/lib/useAreas";
-import { matchScore, topReasons, scoreColor, categoryScoresFromArea, areaSummary } from "@/lib/scoring";
+import { matchScore, scoreColor, categoryScoresFromArea, areaSummary } from "@/lib/scoring";
 import { CATEGORIES, CATEGORY_MAP, PERSONA_FLIPS, categoriesForMode } from "@/lib/categories";
 import { audienceConfig } from "@/lib/audience";
 import ScoreBadge from "@/components/ScoreBadge";
@@ -66,13 +66,11 @@ export default function Results() {
           </div>
         </div>
       </div>
-      <p className="text-sm text-muted-foreground mb-4">{level === "district" ? "10 districts" : "77 barris"} {ac.resultsSubLabel} · {ac.label} · {profile.persona}</p>
+      <p className="text-sm text-muted-foreground mb-4">Neighbourhoods ranked by how well they match your priorities — the higher the score, the better the fit for what matters to you.</p>
 
       {loading ? <div className="py-10 text-center text-muted-foreground">Scoring…</div> : (
         <div className="space-y-3">
           {ranked.slice(0, 20).map((a, i) => {
-            const top = level === "district" ? 5 : 8;
-            const reasons = topReasons({ category_scores: a._computedScores }, weights, (profile.priorities || []).sort((x, y) => y.weight - x.weight).slice(0, top).map((p) => p.category_key));
             return (
               <div key={a.id} className={`rounded-xl border bg-card p-4 shadow-sm ${i < 3 ? "ring-1 ring-emerald-200" : ""}`}>
                 <div className="flex items-start gap-3">
@@ -87,11 +85,6 @@ export default function Results() {
                       {level === "barri" && <span className="text-xs text-muted-foreground">{a.district_name}</span>}
                     </div>
                     <p className="mt-1 text-sm text-muted-foreground">{areaSummary(a._computedScores)}</p>
-                    {i < 3 && reasons.length > 0 && (
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Fits because {reasons.map((r) => `${r.name.toLowerCase()} (${r.score.toFixed(1)}/10, weight ${r.weight})`).join(", ")} align with your priorities.
-                      </p>
-                    )}
                     <div className="mt-2 flex flex-wrap gap-1.5">
                       {(profile.priorities || []).slice(0, 5).sort((x, y) => x.rank - y.rank).map((p) => (
                         <span key={p.category_key} className="inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-[11px]">

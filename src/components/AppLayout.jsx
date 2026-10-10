@@ -43,6 +43,16 @@ function AccountPill() {
   );
 }
 
+function ProfileTypeBadge() {
+  const { audience } = useActiveAudience();
+  const isB2b = audience === "b2b";
+  return (
+    <span className={`ml-auto inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold ${isB2b ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-800"}`}>
+      {isB2b ? "Business" : "Personal"}
+    </span>
+  );
+}
+
 const sideLinkClass = ({ isActive }) =>
   `flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
     isActive ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -90,6 +100,7 @@ export default function AppLayout() {
         <div className="border-t p-3 space-y-1">
           <NavLink to="/profile" className={sideLinkClass}>
             <User className="h-4 w-4" /> My Profile
+            <ProfileTypeBadge />
           </NavLink>
           <button
             onClick={logout}
