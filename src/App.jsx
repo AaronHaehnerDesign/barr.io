@@ -13,6 +13,7 @@ import ForgotPassword from '@/pages/ForgotPassword';
 import ResetPassword from '@/pages/ResetPassword';
 import Landing from '@/pages/Landing';
 import Dashboard from '@/pages/Dashboard';
+import BusinessDashboard from '@/pages/BusinessDashboard';
 import Onboarding from '@/pages/Onboarding';
 import PriorityBoard from '@/pages/PriorityBoard';
 import Results from '@/pages/Results';
@@ -64,6 +65,7 @@ const AuthenticatedApp = () => {
           <Route path="/onboarding" element={<Onboarding />} />
           <Route element={<AppLayout />}>
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/business-dashboard" element={<BusinessDashboard />} />
             <Route path="/results" element={<Results />} />
             <Route path="/priorities" element={<PriorityBoard />} />
             <Route path="/map" element={<MapView />} />

@@ -61,6 +61,15 @@ isActive ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:b
 export default function AppLayout() {
   const [agentOpen, setAgentOpen] = useState(true); // desktop right sidebar
   const [mobileAgent, setMobileAgent] = useState(false); // mobile drawer
+  const { audience } = useActiveAudience();
+  const isB2b = audience === "b2b";
+  // Business accounts get a dedicated Business dashboard as their home nav entry.
+  const mainNav = isB2b
+    ? [{ to: "/business-dashboard", label: "Business", icon: Building2 }, ...MAIN_NAV.filter((n) => n.to !== "/dashboard")]
+    : MAIN_NAV;
+  const mobileNav = isB2b
+    ? [{ to: "/business-dashboard", label: "Business", icon: Building2 }, ...MOBILE_NAV.filter((n) => n.to !== "/dashboard")]
+    : MOBILE_NAV;
 
   async function logout() {
     await base44.auth.logout();
@@ -84,7 +93,7 @@ export default function AppLayout() {
           <AccountPill />
         </div>
         <nav className="flex-1 space-y-1 p-3 overflow-y-auto">
-          {MAIN_NAV.map((n) =>
+          {mainNav.map((n) =>
           <NavLink key={n.to} to={n.to} className={sideLinkClass}>
               <n.icon className="h-4 w-4" /> {n.label}
             </NavLink>
@@ -165,7 +174,7 @@ export default function AppLayout() {
       {/* Mobile bottom nav */}
       <nav className={`md:hidden sticky bottom-0 z-40 border-t bg-background ${mobileAgent ? "hidden" : ""}`}>
         <div className="grid grid-cols-6">
-          {MOBILE_NAV.map((n) =>
+          {mobileNav.map((n) =>
           <NavLink
             key={n.to}
             to={n.to}
