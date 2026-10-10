@@ -6,41 +6,41 @@ import AgentSidebar from "@/components/AgentSidebar";
 import { useActiveAudience } from "@/lib/useActiveAudience";
 
 const MAIN_NAV = [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/results", label: "Results", icon: ListOrdered },
-  { to: "/map", label: "Map", icon: Map },
-  { to: "/compare", label: "Compare", icon: GitCompareArrows },
-  { to: "/priorities", label: "Priorities", icon: SlidersHorizontal },
-  { to: "/data-insights", label: "Insights", icon: BarChart3 },
-  { to: "/saved-comparisons", label: "Saved", icon: Bookmark },
-  { to: "/persona-library", label: "Personas", icon: Users }
-];
+{ to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+{ to: "/results", label: "Results", icon: ListOrdered },
+{ to: "/map", label: "Map", icon: Map },
+{ to: "/compare", label: "Compare", icon: GitCompareArrows },
+{ to: "/priorities", label: "Priorities", icon: SlidersHorizontal },
+{ to: "/data-insights", label: "Insights", icon: BarChart3 },
+{ to: "/saved-comparisons", label: "Saved", icon: Bookmark },
+{ to: "/persona-library", label: "Personas", icon: Users }];
+
 
 const REFERENCE_NAV = [
-  { to: "/glossary", label: "Glossary", icon: BookOpen },
-  { to: "/data-sources", label: "Sources", icon: Database }
-];
+{ to: "/glossary", label: "Glossary", icon: BookOpen },
+{ to: "/data-sources", label: "Sources", icon: Database }];
+
 
 // Compact set for the mobile bottom nav (keeps 6 slots); agent stays one tap
 // away via the Bot button in the mobile header.
 const MOBILE_NAV = [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/results", label: "Results", icon: ListOrdered },
-  { to: "/map", label: "Map", icon: Map },
-  { to: "/compare", label: "Compare", icon: GitCompareArrows },
-  { to: "/priorities", label: "Priorities", icon: SlidersHorizontal },
-  { to: "/profile", label: "Profile", icon: User }
-];
+{ to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+{ to: "/results", label: "Results", icon: ListOrdered },
+{ to: "/map", label: "Map", icon: Map },
+{ to: "/compare", label: "Compare", icon: GitCompareArrows },
+{ to: "/priorities", label: "Priorities", icon: SlidersHorizontal },
+{ to: "/profile", label: "Profile", icon: User }];
+
 
 function AccountPill() {
   const { audience } = useActiveAudience();
   const isB2b = audience === "b2b";
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs ${isB2b ? "border-amber-300 bg-amber-50 text-amber-800" : "border-emerald-300 bg-emerald-50 text-emerald-800"}`}>
+    <span className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs hidden ${isB2b ? "border-amber-300 bg-amber-50 text-amber-800" : "border-emerald-300 bg-emerald-50 text-emerald-800"}`}>
       {isB2b ? <Building2 className="h-3.5 w-3.5" /> : <Home className="h-3.5 w-3.5" />}
       {isB2b ? "Business" : "Personal"} account
-    </span>
-  );
+    </span>);
+
 }
 
 function ProfileTypeBadge() {
@@ -49,14 +49,14 @@ function ProfileTypeBadge() {
   return (
     <span className={`ml-auto inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold ${isB2b ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-800"}`}>
       {isB2b ? "Business" : "Personal"}
-    </span>
-  );
+    </span>);
+
 }
 
 const sideLinkClass = ({ isActive }) =>
-  `flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-    isActive ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"
-  }`;
+`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+isActive ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`;
+
 
 export default function AppLayout() {
   const [agentOpen, setAgentOpen] = useState(true); // desktop right sidebar
@@ -84,17 +84,17 @@ export default function AppLayout() {
           <AccountPill />
         </div>
         <nav className="flex-1 space-y-1 p-3 overflow-y-auto">
-          {MAIN_NAV.map((n) => (
-            <NavLink key={n.to} to={n.to} className={sideLinkClass}>
+          {MAIN_NAV.map((n) =>
+          <NavLink key={n.to} to={n.to} className={sideLinkClass}>
               <n.icon className="h-4 w-4" /> {n.label}
             </NavLink>
-          ))}
+          )}
           <div className="pt-4 pb-1 px-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Reference</div>
-          {REFERENCE_NAV.map((n) => (
-            <NavLink key={n.to} to={n.to} className={sideLinkClass}>
+          {REFERENCE_NAV.map((n) =>
+          <NavLink key={n.to} to={n.to} className={sideLinkClass}>
               <n.icon className="h-4 w-4" /> {n.label}
             </NavLink>
-          ))}
+          )}
         </nav>
 
         <div className="border-t p-3 space-y-1">
@@ -104,8 +104,8 @@ export default function AppLayout() {
           </NavLink>
           <button
             onClick={logout}
-            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
+            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground">
+            
             <LogOut className="h-4 w-4" /> Log out
           </button>
         </div>
@@ -144,14 +144,14 @@ export default function AppLayout() {
         onClick={() => setAgentOpen((v) => !v)}
         className="hidden lg:grid place-items-center fixed top-4 z-40 h-8 w-8 rounded-l-md border border-r-0 bg-background shadow-sm hover:bg-muted text-muted-foreground transition-all"
         style={{ right: agentOpen ? "380px" : "0" }}
-        title={agentOpen ? "Hide agent" : "Show agent"}
-      >
+        title={agentOpen ? "Hide agent" : "Show agent"}>
+        
         {agentOpen ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
       </button>
 
       {/* Mobile agent overlay */}
-      {mobileAgent && (
-        <div className="lg:hidden fixed inset-0 z-50 flex flex-col bg-background">
+      {mobileAgent &&
+      <div className="lg:hidden fixed inset-0 z-50 flex flex-col bg-background">
           <div className="flex h-12 shrink-0 items-center justify-between border-b px-3">
             <span className="text-sm font-semibold flex items-center gap-2"><Bot className="h-4 w-4 text-primary" /> Agent</span>
             <button onClick={() => setMobileAgent(false)} className="grid h-8 w-8 place-items-center rounded-md hover:bg-muted text-muted-foreground" title="Close">
@@ -160,24 +160,24 @@ export default function AppLayout() {
           </div>
           <AgentSidebar className="flex-1 min-h-0" />
         </div>
-      )}
+      }
 
       {/* Mobile bottom nav */}
       <nav className={`md:hidden sticky bottom-0 z-40 border-t bg-background ${mobileAgent ? "hidden" : ""}`}>
         <div className="grid grid-cols-6">
-          {MOBILE_NAV.map((n) => (
-            <NavLink
-              key={n.to}
-              to={n.to}
-              className={({ isActive }) =>
-                `flex flex-col items-center gap-0.5 py-2 text-[10px] ${isActive ? "text-foreground" : "text-muted-foreground"}`
-              }
-            >
+          {MOBILE_NAV.map((n) =>
+          <NavLink
+            key={n.to}
+            to={n.to}
+            className={({ isActive }) =>
+            `flex flex-col items-center gap-0.5 py-2 text-[10px] ${isActive ? "text-foreground" : "text-muted-foreground"}`
+            }>
+            
               <n.icon className="h-5 w-5" /> {n.label}
             </NavLink>
-          ))}
+          )}
         </div>
       </nav>
-    </div>
-  );
+    </div>);
+
 }
