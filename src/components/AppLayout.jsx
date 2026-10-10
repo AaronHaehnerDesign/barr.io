@@ -1,25 +1,29 @@
 import { useState } from "react";
 import { Link, NavLink, Outlet } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { Map, ListOrdered, GitCompareArrows, User, LogOut, Home, SlidersHorizontal, Bot, PanelRightClose, PanelRightOpen, X, BarChart3, Bookmark, BookOpen, Database, Users } from "lucide-react";
+import { Map, ListOrdered, GitCompareArrows, User, LogOut, Home, SlidersHorizontal, Bot, PanelRightClose, PanelRightOpen, X, BarChart3, Bookmark, BookOpen, Database, Users, LayoutDashboard } from "lucide-react";
 import AgentSidebar from "@/components/AgentSidebar";
 
-const NAV = [
-  { to: "/agent", label: "Agent", icon: Bot },
+const MAIN_NAV = [
+  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/results", label: "Results", icon: ListOrdered },
   { to: "/map", label: "Map", icon: Map },
   { to: "/compare", label: "Compare", icon: GitCompareArrows },
   { to: "/priorities", label: "Priorities", icon: SlidersHorizontal },
   { to: "/data-insights", label: "Insights", icon: BarChart3 },
   { to: "/saved-comparisons", label: "Saved", icon: Bookmark },
-  { to: "/glossary", label: "Glossary", icon: BookOpen },
-  { to: "/data-sources", label: "Sources", icon: Database },
   { to: "/persona-library", label: "Personas", icon: Users }
 ];
 
-// Compact set for the mobile bottom nav (keeps 6 slots).
+const REFERENCE_NAV = [
+  { to: "/glossary", label: "Glossary", icon: BookOpen },
+  { to: "/data-sources", label: "Sources", icon: Database }
+];
+
+// Compact set for the mobile bottom nav (keeps 6 slots); agent stays one tap
+// away via the Bot button in the mobile header.
 const MOBILE_NAV = [
-  { to: "/agent", label: "Agent", icon: Bot },
+  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/results", label: "Results", icon: ListOrdered },
   { to: "/map", label: "Map", icon: Map },
   { to: "/compare", label: "Compare", icon: GitCompareArrows },
@@ -45,7 +49,7 @@ export default function AppLayout() {
       {/* Sidebar (desktop) */}
       <aside className="hidden md:flex md:w-60 md:flex-col md:fixed md:inset-y-0 border-r bg-background">
         <div className="flex items-center gap-2 h-14 px-4 border-b">
-          <Link to="/results" className="flex items-center gap-2 font-semibold">
+          <Link to="/dashboard" className="flex items-center gap-2 font-semibold">
             <span className="grid h-7 w-7 place-items-center rounded-lg bg-primary text-primary-foreground">
               <Home className="h-4 w-4" />
             </span>
@@ -54,8 +58,14 @@ export default function AppLayout() {
           <span className="ml-auto rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800">sample</span>
         </div>
 
-        <nav className="flex-1 space-y-1 p-3">
-          {NAV.map((n) => (
+        <nav className="flex-1 space-y-1 p-3 overflow-y-auto">
+          {MAIN_NAV.map((n) => (
+            <NavLink key={n.to} to={n.to} className={sideLinkClass}>
+              <n.icon className="h-4 w-4" /> {n.label}
+            </NavLink>
+          ))}
+          <div className="pt-4 pb-1 px-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Reference</div>
+          {REFERENCE_NAV.map((n) => (
             <NavLink key={n.to} to={n.to} className={sideLinkClass}>
               <n.icon className="h-4 w-4" /> {n.label}
             </NavLink>
@@ -78,7 +88,7 @@ export default function AppLayout() {
       {/* Mobile top header */}
       <header className="md:hidden sticky top-0 z-40 border-b bg-background/90 backdrop-blur">
         <div className="flex items-center justify-between h-14 px-4">
-          <Link to="/results" className="flex items-center gap-2 font-semibold">
+          <Link to="/dashboard" className="flex items-center gap-2 font-semibold">
             <span className="grid h-7 w-7 place-items-center rounded-lg bg-primary text-primary-foreground">
               <Home className="h-4 w-4" />
             </span>

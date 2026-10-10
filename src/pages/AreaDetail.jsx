@@ -6,6 +6,7 @@ import { useDistrict, useBarri } from "@/lib/useAreas";
 import { useProfile } from "@/lib/useProfile";
 import { CATEGORIES, CATEGORY_MAP, INDICATORS } from "@/lib/categories";
 import { matchScore, scoreColor, categoryScoresFromArea } from "@/lib/scoring";
+import { areaIntro } from "@/lib/areaIntro";
 
 // Fit the detail map tightly to the area's boundary so the polygon is centered
 // and fills the frame (no matter whether it is a district or a barri).
@@ -84,6 +85,8 @@ export default function AreaDetail() {
           </div>
         )}
       </div>
+
+      <p className="mt-4 text-sm leading-relaxed text-muted-foreground">{areaIntro(a, type)}</p>
 
       {/* AI summary */}
       <div className="mt-5 grid gap-3 sm:grid-cols-2">
