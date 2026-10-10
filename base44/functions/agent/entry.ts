@@ -13,10 +13,15 @@
 // values rather than exact tallies.
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
 
-const WELCOME = {
+const WELCOME_B2C = {
   role: "assistant",
-  content: "Hi! I'm your BarrioMatch agent. Tell me what you're looking for — a home for you and your household, or a location for your business. Describe your situation, budget, and what matters to you, and I'll guide you from there. You can type or tap the mic to speak.",
+  content: "Hi! I'm your BarrioMatch agent — I'll help you find your ideal Barcelona neighbourhood. To start, who will be living there? Just you, a couple, or a family with kids?",
 };
+const WELCOME_B2B = {
+  role: "assistant",
+  content: "Hi! I'm your BarrioMatch agent — I'll help you find the right Barcelona location for your business. To start, what kind of business is it? (shop, restaurant, office, workshop…)",
+};
+const welcomeFor = (audience: string) => audience === "b2b" ? WELCOME_B2B : WELCOME_B2C;
 
 // Base categories (Personal + Business), plus Business-only categories.
 // Mirrors src/lib/categories.js so the agent lists the right categories per mode.
@@ -134,17 +139,18 @@ export default async function (req: any) {
 
     // --- Load persisted conversation for THIS mode (server is source of truth) ---
     const convoPage = await base44.entities.AgentConversation.filter(
-      { audience }, { limit: 1, sort: '-created_date' }
+      { audience, created_by_id: user.id }, { limit: 1, sort: '-created_date' }
     );
     let conversation = (convoPage.items || [])[0] || null;
 
     // --- Load the user's confirmed profile for THIS mode so we can build on it ---
     const profPage = await base44.entities.UserProfile.filter(
-      { audience }, { limit: 1, sort: '-created_date' }
+      { audience, created_by_id: user.id }, { limit: 1, sort: '-created_date' }
     );
     const existingProfile = (profPage.items || [])[0] || null;
 
-    const priorMessages = conversation?.messages?.length ? conversation.messages : [WELCOME];
+    const welcome = welcomeFor(audience);
+    const priorMessages = conversation?.messages?.length ? conversation.messages : [welcome];
 
     const accumulated = existingProfile ? {
       audience: existingProfile.audience || audience,
@@ -222,6 +228,8 @@ Collect mode-appropriate context:
 ${audience === "b2b"
   ? `BUSINESS: ask at most 3 to 5 short follow-up questions across: business type / sector, team size, premises type (storefront / office / workshop / logistics), premises budget, footfall & customer access, staff commute, loading / parking. Never re-ask what the user already told you. Persona options: ${personaOptions}.`
   : `PERSONAL: ask at most 3 to 5 short follow-up questions across: household composition, budget, car yes/no, work location, lifestyle. Never re-ask what the user already told you. Persona options: ${personaOptions}.`}
+
+The opening assistant message already asked one mode-specific question. On the first turn, do NOT repeat it — acknowledge the user's first answer and ask the next mode-appropriate question.
 
 The scoring categories for this mode (use these exact keys):
 ${modeCats.join(", ")}.

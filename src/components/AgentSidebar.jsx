@@ -9,7 +9,8 @@ import VoiceRecorder from "@/components/VoiceRecorder";
 import { Button } from "@/components/ui/button";
 import { Send, Sparkles, Loader2 } from "lucide-react";
 
-const WELCOME = { role: "assistant", content: "Hi! I'm your BarrioMatch agent. Tell me what you're looking for — a home for you and your household, or a location for your business. Describe your situation, budget, and what matters to you, and I'll guide you from there. You can type or tap the mic to speak." };
+const WELCOME_B2C = { role: "assistant", content: "Hi! I'm your BarrioMatch agent — I'll help you find your ideal Barcelona neighbourhood. To start, who will be living there? Just you, a couple, or a family with kids?" };
+const WELCOME_B2B = { role: "assistant", content: "Hi! I'm your BarrioMatch agent — I'll help you find the right Barcelona location for your business. To start, what kind of business is it? (shop, restaurant, office, workshop…)" };
 
 // Self-contained agent chat designed to live in a right sidebar. When the agent
 // detects a ready profile it saves it immediately (preserving the existing
@@ -27,7 +28,8 @@ export default function AgentSidebar({ className = "" }) {
   const [draft, setDraft] = useState(null);
   const scrollRef = useRef(null);
 
-  const serverMessages = convo?.messages?.length ? convo.messages : [WELCOME];
+  const welcome = audience === "b2b" ? WELCOME_B2B : WELCOME_B2C;
+  const serverMessages = convo?.messages?.length ? convo.messages : [welcome];
   const messages = [...serverMessages, ...pending];
 
   useEffect(() => {

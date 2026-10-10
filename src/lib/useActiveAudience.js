@@ -7,5 +7,5 @@ import { useAuth } from "@/lib/AuthContext";
 export function useActiveAudience() {
   const { user } = useAuth();
   const audience = user?.account_type === "business" ? "b2b" : "b2c";
-  return { audience };
+  return { audience, userId: user?.id };
 }

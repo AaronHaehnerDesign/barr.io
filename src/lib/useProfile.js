@@ -6,12 +6,13 @@ import { useActiveAudience } from "@/lib/useActiveAudience";
 // source of truth for which profile to load/save, so the same hook works for
 // both — switching modes swaps the profile without overwriting the other.
 export function useProfile() {
-  const { audience } = useActiveAudience();
+  const { audience, userId } = useActiveAudience();
   return useQuery({
-    queryKey: ["userprofile", audience],
+    queryKey: ["userprofile", audience, userId],
+    enabled: !!userId,
     queryFn: async () => {
       const { items } = await base44.entities.UserProfile.filter(
-        { audience }, { limit: 1, sort: "-created_date" }
+        { audience, created_by_id: userId }, { limit: 1, sort: "-created_date" }
       );
       return items[0] || null;
     }
@@ -19,13 +20,13 @@ export function useProfile() {
 }
 
 export function useSaveProfile() {
-  const { audience } = useActiveAudience();
+  const { audience, userId } = useActiveAudience();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (data) => {
       const aud = data.audience || audience;
       const { items } = await base44.entities.UserProfile.filter(
-        { audience: aud }, { limit: 1, sort: "-created_date" }
+        { audience: aud, created_by_id: userId }, { limit: 1, sort: "-created_date" }
       );
       if (items[0]) {
         return base44.entities.UserProfile.update(items[0].id, { ...data, audience: aud });
