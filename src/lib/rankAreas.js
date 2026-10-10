@@ -1,5 +1,5 @@
 import { PERSONA_FLIPS, categoriesForMode } from "@/lib/categories";
-import { categoryScoresFromArea, matchScore } from "@/lib/scoring";
+import { categoryScoresFromArea, matchScore, adjustMatches } from "@/lib/scoring";
 
 // Ranks areas by personal match score for a profile (highest first).
 export function rankAreas(data, profile) {
@@ -8,7 +8,7 @@ export function rankAreas(data, profile) {
   (profile?.priorities || []).forEach((p) => (w[p.category_key] = p.weight));
   const flip = (profile?.persona && PERSONA_FLIPS[profile.persona]) || {};
   const cats = categoriesForMode(profile?.audience || "b2c");
-  return data
+  return adjustMatches(data
     .map((a) => {
       const base = categoryScoresFromArea(a);
       const cs = {};
@@ -20,5 +20,5 @@ export function rankAreas(data, profile) {
       });
       return { ...a, _scores: cs, match_score: matchScore(cs, w) };
     })
-    .sort((a, b) => b.match_score - a.match_score);
+    .sort((a, b) => b.match_score - a.match_score));
 }

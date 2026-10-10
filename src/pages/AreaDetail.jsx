@@ -1,4 +1,7 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
+import { useDistricts, useBarris } from "@/lib/useAreas";
+import { rankAreas } from "@/lib/rankAreas";
+import { MATCH_NOTE } from "@/lib/scoring";
 import { useParams, Link } from "react-router-dom";
 import { MapContainer, TileLayer, Polygon, CircleMarker, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
@@ -49,6 +52,10 @@ export default function AreaDetail() {
   const q = type === "barri" ? barriQ : districtQ;
   const { data: profile } = useProfile();
   const { audience } = useActiveAudience();
+  const allDistricts = useDistricts();
+  const allBarris = useBarris();
+  const peers = (type === "barri" ? allBarris.data : allDistricts.data) || [];
+  const ranked = useMemo(() => rankAreas(peers, profile), [peers, profile]);
 
   if (q.isLoading) return <div className="p-8 text-center text-muted-foreground">Loading…</div>;
   const a = q.data;
@@ -60,7 +67,7 @@ export default function AreaDetail() {
   const inds = indicatorsForMode(aud);
   const weights = {};
   (profile?.priorities || []).forEach((p) => (weights[p.category_key] = p.weight));
-  const ms = Object.keys(weights).length ? matchScore(scores, weights) : null;
+  const ms = Object.keys(weights).length ? (ranked.find((r) => r.id === a.id)?.match_score ?? null) : null;
 
   // Rank category scores by the user's priority weights (most relevant first);
   // categories without a weight fall back to their default order.
@@ -89,9 +96,9 @@ export default function AreaDetail() {
           </p>
         </div>
         {ms != null && (
-          <div className="text-right">
+          <div className="text-right cursor-help" title={MATCH_NOTE}>
             <div className="text-3xl font-bold" style={{ color: scoreColor((ms / 10) + 1) }}>{ms}%</div>
-            <div className="text-xs text-muted-foreground">personal match</div>
+            <div className="text-xs text-muted-foreground">relative match</div>
           </div>
         )}
       </div>

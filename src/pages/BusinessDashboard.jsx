@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useProfile } from "@/lib/useProfile";
 import { useDistricts, useBarris } from "@/lib/useAreas";
 import { CATEGORY_MAP, PERSONA_FLIPS, categoriesForMode } from "@/lib/categories";
-import { categoryScoresFromArea, matchScore, scoreColor, areaSummary } from "@/lib/scoring";
+import { categoryScoresFromArea, matchScore, scoreColor, areaSummary, adjustMatches } from "@/lib/scoring";
 import { areaIntro } from "@/lib/areaIntro";
 import CategoryIcon from "@/components/CategoryIcon";
 import ScoreBadge from "@/components/ScoreBadge";
@@ -20,7 +20,7 @@ function useRanked(audience, priorities, persona, data) {
     (priorities || []).forEach((p) => (w[p.category_key] = p.weight));
     const flip = (persona && PERSONA_FLIPS[persona]) || {};
     const cats = categoriesForMode(audience || "b2b");
-    return data
+    return adjustMatches(data
       .map((a) => {
         const base = categoryScoresFromArea(a);
         const cs = {};
@@ -32,7 +32,7 @@ function useRanked(audience, priorities, persona, data) {
         });
         return { ...a, _scores: cs, match_score: matchScore(cs, w) };
       })
-      .sort((a, b) => b.match_score - a.match_score);
+      .sort((a, b) => b.match_score - a.match_score));
   }, [data, priorities, persona, audience]);
 }
 

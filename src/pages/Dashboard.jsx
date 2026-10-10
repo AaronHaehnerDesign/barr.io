@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useProfile } from "@/lib/useProfile";
 import { useDistricts, useBarris } from "@/lib/useAreas";
 import { CATEGORIES, CATEGORY_MAP, PERSONA_FLIPS, categoriesForMode } from "@/lib/categories";
-import { categoryScoresFromArea, matchScore, areaSummary, scoreColor } from "@/lib/scoring";
+import { categoryScoresFromArea, matchScore, areaSummary, scoreColor, MATCH_NOTE } from "@/lib/scoring";
 import { areaIntro } from "@/lib/areaIntro";
 import DashboardApartments from "@/components/DashboardApartments";
 import CategoryIcon from "@/components/CategoryIcon";
@@ -55,7 +55,7 @@ export default function Dashboard() {
             <>
               <div className="mt-1 flex items-center gap-3">
                 <Link to={`/area/${bestType}/${best.id}`} className="text-xl font-bold hover:underline">{best.name}</Link>
-                <div className="ml-auto text-3xl font-bold" style={{ color: scoreColor((best.match_score / 10) + 1) }}>{best.match_score}%</div>
+                <div title={MATCH_NOTE} className="ml-auto cursor-help text-3xl font-bold" style={{ color: scoreColor((best.match_score / 10) + 1) }}>{best.match_score}%</div>
               </div>
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{areaIntro(best, bestType)}</p>
               <Button asChild size="sm" className="mt-3"><Link to="/results">See all results <ArrowRight className="h-3.5 w-3.5" /></Link></Button>

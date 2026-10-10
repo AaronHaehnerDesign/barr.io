@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useDistricts, useBarris } from "@/lib/useAreas";
 import { CATEGORY_MAP, PERSONA_FLIPS, categoriesForMode } from "@/lib/categories";
 import { PERSONA_LIBRARY, personaWeights } from "@/lib/personas";
-import { categoryScoresFromArea, matchScore, areaSummary, scoreColor } from "@/lib/scoring";
+import { categoryScoresFromArea, matchScore, areaSummary, scoreColor, adjustMatches } from "@/lib/scoring";
 import ScoreBadge from "@/components/ScoreBadge";
 import CategoryIcon from "@/components/CategoryIcon";
 import { Briefcase, Coffee, Baby, HeartPulse, Plane, Wallet, Users, ChevronRight, Layers, GraduationCap, Laptop, Palette, ShoppingBag, UtensilsCrossed, Building2, Truck, Stethoscope } from "lucide-react";
@@ -14,7 +14,7 @@ const ICONS = { Briefcase, Coffee, Baby, HeartPulse, Plane, Wallet, Users, Gradu
 function rankFor(persona, areas, type) {
   const w = personaWeights(persona);
   const flip = PERSONA_FLIPS[persona.name] || {};
-  return areas
+  return adjustMatches(areas
     .map((a) => {
       const base = categoryScoresFromArea(a);
       const cs = {};
@@ -26,7 +26,7 @@ function rankFor(persona, areas, type) {
       });
       return { ...a, _type: type, _scores: cs, match_score: matchScore(cs, w) };
     })
-    .sort((a, b) => b.match_score - a.match_score);
+    .sort((a, b) => b.match_score - a.match_score));
 }
 
 export default function PersonaBrowser() {

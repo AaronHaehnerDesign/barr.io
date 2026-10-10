@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useProfile } from "@/lib/useProfile";
 import { useDistricts, useBarris } from "@/lib/useAreas";
-import { matchScoreWithCommute, scoreColor, categoryScoresFromArea, areaSummary, nearestWorkplace } from "@/lib/scoring";
+import { matchScoreWithCommute, adjustMatches, scoreColor, categoryScoresFromArea, areaSummary, nearestWorkplace } from "@/lib/scoring";
 import { CATEGORY_MAP, PERSONA_FLIPS, categoriesForMode } from "@/lib/categories";
 import { audienceConfig } from "@/lib/audience";
 import { useWorkplaces } from "@/lib/useWorkplaces";
@@ -32,7 +32,7 @@ export default function Results() {
   const cats = categoriesForMode(profile?.audience || "b2c");
 
   function rank(areas, type) {
-    return areas
+    return adjustMatches(areas
       .map((a) => {
         const base = categoryScoresFromArea(a);
         const cs = {};
@@ -45,7 +45,7 @@ export default function Results() {
         const ms = matchScoreWithCommute(cs, weights, a, workplaces);
         return { ...a, _type: type, _computedScores: cs, match_score: ms };
       })
-      .sort((a, b) => b.match_score - a.match_score);
+      .sort((a, b) => b.match_score - a.match_score));
   }
 
   const loading = level === "district" ? districts.isLoading : barris.isLoading;

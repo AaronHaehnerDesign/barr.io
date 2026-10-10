@@ -49,6 +49,25 @@ export function matchScore(categoryScores, weights) {
   return Math.round(((avg - 1) / 9) * 100); // 0-100
 }
 
+export const MATCH_NOTE = "Relative match: your fit compared with the other areas, boosted for your top picks. Not a probability.";
+
+// Converts raw 0-100 match scores of a set of areas into the displayed relative
+// match. Monotonic in the raw score, so ranking never changes. Keeps the
+// original as raw_match_score. All-zero sets (no priorities) stay at 0.
+export function adjustMatches(items) {
+  const raws = items.map((i) => i.match_score || 0);
+  const max = Math.max(0, ...raws);
+  const min = Math.min(...raws);
+  if (max === 0) return items;
+  return items.map((i) => {
+    const raw = i.match_score || 0;
+    const lifted = 100 * Math.sqrt(raw / 100);
+    const rel = max > min ? (raw - min) / (max - min) : 1;
+    const adj = Math.round(Math.min(99, 0.7 * lifted + 0.3 * (50 + 50 * rel)));
+    return { ...i, raw_match_score: raw, match_score: adj };
+  });
+}
+
 // --- Workplace proximity ---
 // Distance (km) between a {lat,lon} point and an area centroid via haversine.
 export function haversineKm(a, b) {

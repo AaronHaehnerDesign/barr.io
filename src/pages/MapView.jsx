@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useProfile } from "@/lib/useProfile";
 import { useDistricts, useBarris } from "@/lib/useAreas";
-import { scoreColor, categoryScoresFromArea, matchScoreWithCommute, nearestWorkplace } from "@/lib/scoring";
+import { scoreColor, categoryScoresFromArea, matchScoreWithCommute, nearestWorkplace, adjustMatches } from "@/lib/scoring";
 import { PERSONA_FLIPS, categoriesForMode } from "@/lib/categories";
 import { audienceConfigByKey } from "@/lib/audience";
 import { useActiveAudience } from "@/lib/useActiveAudience";
@@ -54,9 +54,11 @@ export default function MapView() {
   // (1-10 scale) and a hover label. Workplace proximity is baked into the match.
   const { geojson, workMarkers } = useMemo(() => {
     const features = [];
+    const adjusted = adjustMatches(areas.map((a) => ({ id: a.id, match_score: matchOf(a, categoryScoresFromArea(a)) })));
+    const adjById = Object.fromEntries(adjusted.map((x) => [x.id, x.match_score]));
     areas.forEach((a) => {
       const scores = categoryScoresFromArea(a);
-      const ms = matchOf(a, scores);
+      const ms = adjById[a.id];
       const v = metric === "match" ? (ms / 10) + 1 : catScore(scores, metric);
       const matchLine = profile?.priorities?.length ? `${ms}% match` : WELCOME_HINT;
       let label = `${a.name} · ${matchLine}`;
