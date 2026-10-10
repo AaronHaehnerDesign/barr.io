@@ -4,10 +4,13 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { useDistricts, useBarris } from "@/lib/useAreas";
 import { useActiveAudience } from "@/lib/useActiveAudience";
 import { CATEGORY_MAP, INDICATORS, categoriesForMode, indicatorsForMode } from "@/lib/categories";
-import { categoryScoresFromArea, scoreColor, isStale } from "@/lib/scoring";
+import { categoryScoresFromArea, scoreColor } from "@/lib/scoring";
 import CategoryIcon from "@/components/CategoryIcon";
 import ScoreBadge from "@/components/ScoreBadge";
 import { BarChart3, Map as MapIcon, Database, Layers, ChevronRight } from "lucide-react";
+import ComparisonMatrix from "@/components/insights/ComparisonMatrix";
+import AreaRadar from "@/components/insights/AreaRadar";
+import FreshnessTimeline from "@/components/insights/FreshnessTimeline";
 
 function avgByCategory(areas, cats) {
   const sums = {};
@@ -53,7 +56,6 @@ export default function DataInsights() {
 
   const citywideTop = distAvg.slice(0, 3);
   const citywideBottom = distAvg.slice(-3).reverse();
-  const staleCount = inds.filter((i) => isStale(i.last_updated)).length;
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-6">
@@ -159,9 +161,14 @@ export default function DataInsights() {
             </table>
           </div>
 
-          {staleCount > 0 && (
-            <p className="mt-3 text-xs text-amber-600">{staleCount} indicator(s) rely on data older than 3 years; treat those with caution.</p>
-          )}
+          <div className="grid lg:grid-cols-2 gap-3 mt-4">
+            <AreaRadar areas={districts.data || []} cats={cats} />
+            <FreshnessTimeline indicators={inds} cats={cats} />
+          </div>
+
+          <div className="mt-4">
+            <ComparisonMatrix areas={districts.data || []} cats={cats} level="district" />
+          </div>
         </>
       )}
     </div>
